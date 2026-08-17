@@ -1,0 +1,563 @@
+{
+  "info": {
+    "name": "pipoe",
+    "description": "Colección de debugging de Pipoe API (Spring Boot, puerto 8080).\n\nFlujo sugerido:\n1. Auth > Login (guarda accessToken/refreshToken en las variables de la colección).\n2. Proyectos > Crear proyecto (guarda proyectoId).\n3. Colaboradores > Crear colaborador.\n4. Auth > Login colaborador (nombreProyecto + email + la clave que llegó por mail; cargala en la variable colaboradorPassword).\n\nFlujo de alta por solicitud:\n1. Solicitudes de acceso > Pedir acceso (público, guarda solicitudId).\n2. Auth > Login como ADMIN.\n3. Solicitudes de acceso > Listar / Aprobar (crea el usuario y le manda la clave por mail).\n\nRutas públicas: /api/auth/login, /api/auth/refresh, /api/auth/colaborador/login y POST /api/solicitudes-acceso.\nEl resto usa Bearer {{accessToken}} heredado de la colección.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{accessToken}}", "type": "string" }
+    ]
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080", "type": "string" },
+    { "key": "email", "value": "admin@pipoe.com", "type": "string" },
+    { "key": "password", "value": "admin1234", "type": "string" },
+    { "key": "accessToken", "value": "", "type": "string" },
+    { "key": "refreshToken", "value": "", "type": "string" },
+    { "key": "proyectoId", "value": "", "type": "string" },
+    { "key": "nombreProyecto", "value": "Proyecto Demo", "type": "string" },
+    { "key": "colaboradorEmail", "value": "colaborador@pipoe.com", "type": "string" },
+    { "key": "colaboradorPassword", "value": "", "type": "string" },
+    { "key": "solicitanteEmail", "value": "ana.perez@universidad.edu", "type": "string" },
+    { "key": "solicitudId", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Público. LoginRequest { email (@Email), password }. Devuelve LoginResponse { accessToken, refreshToken, usuario: SesionResponse }.\n\nOJO: hay rate limit por IP (5 intentos fallidos en 5 min => bloqueo 30 min)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    pm.collectionVariables.set('accessToken', body.accessToken);",
+                  "    pm.collectionVariables.set('refreshToken', body.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login colaborador",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombreProyecto\": \"{{nombreProyecto}}\",\n  \"email\": \"{{colaboradorEmail}}\",\n  \"password\": \"{{colaboradorPassword}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/colaborador/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "colaborador", "login"]
+            },
+            "description": "Público. ColaboradorLoginRequest { nombreProyecto, email (@Email), password }.\n\nLa clave se genera al dar de alta al colaborador y le llega por mail; después puede cambiarla con PUT /api/auth/change-password.\n\nDevuelve LoginResponse { accessToken, refreshToken, usuario: SesionResponse }. El access token lleva claims type=COLABORADOR y proyectoId.\n\nOJO: mismo rate limit por IP que el login de usuario."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    pm.collectionVariables.set('accessToken', body.accessToken);",
+                  "    pm.collectionVariables.set('refreshToken', body.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh token",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/refresh",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "refresh"]
+            },
+            "description": "Público. RefreshRequest { refreshToken }. Rota el refresh token (el anterior queda inválido) y devuelve RefreshResponse { accessToken, refreshToken }.\n\nSirve tanto para usuarios (subject USUARIO:<email>) como para colaboradores (subject COLABORADOR:<id>)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    pm.collectionVariables.set('accessToken', body.accessToken);",
+                  "    pm.collectionVariables.set('refreshToken', body.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "me"]
+            },
+            "description": "Requiere Bearer. Devuelve SesionResponse { type: USUARIO | COLABORADOR, id, email, nombreCompleto, role, proyectoId, proyectoNombre }.\n\nrole viene null para colaboradores; proyectoId/proyectoNombre vienen null para usuarios. Nunca incluye la contraseña."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register usuario (ADMIN)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"nuevo.usuario@pipoe.com\",\n  \"nombreCompleto\": \"Nuevo Usuario\",\n  \"role\": \"USER\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register"]
+            },
+            "description": "Requiere Bearer con rol ADMIN (@PreAuthorize hasRole('ADMIN')).\n\nRegisterUsuarioRequest { email (@Email), nombreCompleto, role: ADMIN | USER }.\nNo se manda password: la genera el back y la envía por mail. Devuelve UsuarioResponse."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Change password",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"{{password}}\",\n  \"newPassword\": \"nuevaPassword123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/change-password",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "change-password"]
+            },
+            "description": "Requiere Bearer de un Usuario o de un Colaborador (según el tipo de token, cambia la clave de uno u otro). ChangePasswordRequest { currentPassword, newPassword (min 8) }. Responde 204 No Content."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('204 No Content', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "logout"]
+            },
+            "description": "Requiere Bearer. Manda el access token a la blacklist de Redis por el TTL restante y revoca el refresh token. Responde 204 No Content."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('204 No Content', () => pm.response.to.have.status(204));",
+                  "",
+                  "if (pm.response.code === 204) {",
+                  "    pm.collectionVariables.set('accessToken', '');",
+                  "    pm.collectionVariables.set('refreshToken', '');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Proyectos",
+      "item": [
+        {
+          "name": "Listar mis proyectos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/proyectos",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "proyectos"]
+            },
+            "description": "Requiere Bearer con rol ADMIN o USER. Devuelve los proyectos del usuario autenticado (List<ProyectoResponse>), ordenados por nombre.\n\nUn colaborador recibe 403: sólo puede pedir el detalle de su propio proyecto."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    if (body.length) pm.collectionVariables.set('proyectoId', body[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Detalle de proyecto",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/proyectos/{{proyectoId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "proyectos", "{{proyectoId}}"]
+            },
+            "description": "Requiere Bearer. Devuelve ProyectoResponse.\n\nEl usuario sólo ve los proyectos de los que es dueño; el colaborador sólo el proyecto de su token (claim proyectoId). Cualquier otro caso: 403."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear proyecto",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"{{nombreProyecto}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/proyectos",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "proyectos"]
+            },
+            "description": "Requiere Bearer con rol ADMIN o USER. RegisterProyectoRequest { nombre (max 100) }. Responde 201 Created con ProyectoResponse."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "",
+                  "if (pm.response.code === 201) {",
+                  "    const body = pm.response.json();",
+                  "    pm.collectionVariables.set('proyectoId', body.id);",
+                  "    if (body.nombre) pm.collectionVariables.set('nombreProyecto', body.nombre);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Colaboradores",
+      "item": [
+        {
+          "name": "Listar colaboradores",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/proyectos/{{proyectoId}}/colaboradores",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "proyectos", "{{proyectoId}}", "colaboradores"]
+            },
+            "description": "Requiere Bearer con rol ADMIN o USER, y ser el dueño del proyecto. Devuelve List<ColaboradorResponse> ordenada por nombre."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Crear colaborador",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Colaborador Demo\",\n  \"email\": \"{{colaboradorEmail}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/proyectos/{{proyectoId}}/colaboradores",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "proyectos", "{{proyectoId}}", "colaboradores"],
+              "variable": []
+            },
+            "description": "Requiere Bearer con rol ADMIN o USER, y ser el dueño del proyecto. Path: proyectoId.\n\nRegisterColaboradorRequest { nombre (max 100), email (@Email, max 150) }. No se manda password: la genera el back y se la envía por mail junto con el nombre del proyecto.\n\nResponde 201 Created con ColaboradorResponse (nunca incluye la clave)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "",
+                  "if (pm.response.code === 201) {",
+                  "    const body = pm.response.json();",
+                  "    if (body.email) pm.collectionVariables.set('colaboradorEmail', body.email);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Solicitudes de acceso",
+      "item": [
+        {
+          "name": "Pedir acceso (público)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombreCompleto\": \"Ana Pérez\",\n  \"email\": \"{{solicitanteEmail}}\",\n  \"pais\": \"Argentina\",\n  \"universidad\": \"UNLP\",\n  \"uso\": \"Quiero usarlo para el trabajo final de la cátedra.\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/solicitudes-acceso",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "solicitudes-acceso"]
+            },
+            "description": "Público (único POST sin auth fuera de /api/auth).\n\nRegisterSolicitudAccesoRequest { nombreCompleto (max 150), email (@Email, max 150), pais (max 100), universidad (max 150), uso (max 500) }. Todos obligatorios.\n\nResponde 201 Created con SolicitudAccesoResponse en estado PENDIENTE.\n\nRate limit: 3 solicitudes por IP por hora (MAX_SOLICITUDES_ACCESO / SOLICITUDES_WINDOW_MIN). Si el email ya tiene una solicitud pendiente o ya es usuario, responde 400 con el mismo mensaje en los dos casos."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "",
+                  "if (pm.response.code === 201) {",
+                  "    const body = pm.response.json();",
+                  "    pm.collectionVariables.set('solicitudId', body.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listar solicitudes (ADMIN)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/solicitudes-acceso?estado=PENDIENTE&page=0",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "solicitudes-acceso"],
+              "query": [
+                { "key": "estado", "value": "PENDIENTE", "description": "PENDIENTE | APROBADA | RECHAZADA. Vacío = todas." },
+                { "key": "page", "value": "0", "description": "Página de 30 (Constantes.PAGE_SIZE)." }
+              ]
+            },
+            "description": "Requiere Bearer con rol ADMIN. Devuelve una página de SolicitudAccesoResponse ordenada por fechaSolicitud descendente (las más nuevas primero)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    const body = pm.response.json();",
+                  "    if (body.content && body.content.length) {",
+                  "        pm.collectionVariables.set('solicitudId', body.content[0].id);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Aprobar solicitud (ADMIN)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/solicitudes-acceso/{{solicitudId}}/aprobar",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "solicitudes-acceso", "{{solicitudId}}", "aprobar"]
+            },
+            "description": "Requiere Bearer con rol ADMIN. Sin body.\n\nCrea el Usuario con rol USER, genera la clave y se la manda por mail (UsuarioService.register), y deja la solicitud en APROBADA con fechaResolucion.\n\n400 si la solicitud ya fue resuelta o si ya existe un usuario con ese email."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    pm.test('queda APROBADA', () => pm.expect(pm.response.json().estado).to.eql('APROBADA'));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Rechazar solicitud (ADMIN)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/solicitudes-acceso/{{solicitudId}}/rechazar",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "solicitudes-acceso", "{{solicitudId}}", "rechazar"]
+            },
+            "description": "Requiere Bearer con rol ADMIN. Sin body.\n\nDeja la solicitud en RECHAZADA con fechaResolucion. No manda ningún mail: el rechazo es silencioso.\n\n400 si la solicitud ya fue resuelta."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    pm.test('queda RECHAZADA', () => pm.expect(pm.response.json().estado).to.eql('RECHAZADA'));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
