@@ -1,0 +1,174 @@
+@import "tailwindcss";
+
+/*
+  Tipografías de Arlette, servidas desde el propio proyecto y no desde el CDN de Google.
+  Tres motivos: la página no depende de un tercero para renderizar, no se le filtra a Google
+  la IP de cada visitante, y permite una Content-Security-Policy más cerrada.
+
+  Sólo el subconjunto `latin`: cubre el español entero (acentos, ñ, ¿, ¡, comillas y rayas)
+  en 114 KB entre los cuatro archivos.
+*/
+@font-face {
+  font-family: "Lato";
+  font-style: normal;
+  /* Rango y no un peso puntual: Lato no trae 500 ni 600, así que sin esto `font-medium`
+     caería a 400 y perdería todo el énfasis que la interfaz le da por diseño. */
+  font-weight: 100 400;
+  font-display: swap;
+  src: url("./assets/fonts/lato-400.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Lato";
+  font-style: italic;
+  font-weight: 100 400;
+  font-display: swap;
+  src: url("./assets/fonts/lato-400-italic.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Lato";
+  font-style: normal;
+  font-weight: 500 900;
+  font-display: swap;
+  src: url("./assets/fonts/lato-700.woff2") format("woff2");
+}
+
+/* Alegreya sí es variable: un archivo cubre todo el rango de pesos. */
+@font-face {
+  font-family: "Alegreya";
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url("./assets/fonts/alegreya-var.woff2") format("woff2");
+}
+
+@theme {
+  /*
+    Paleta de marca, construida alrededor del azul de Arlette (#1a4691, el color
+    institucional de arlettepichardo.com). `brand-600` es exactamente ese azul porque es el
+    tono que usan los botones primarios; el resto de la rampa se deriva de él.
+    Cambiando estos valores cambia toda la app.
+  */
+  --color-brand-50: #f0f4fb;
+  --color-brand-100: #dde7f6;
+  --color-brand-200: #c2d4ef;
+  --color-brand-300: #97b5e3;
+  --color-brand-400: #5f8ed2;
+  --color-brand-500: #3767b4;
+  --color-brand-600: #1a4691;
+  --color-brand-700: #163c7d;
+  --color-brand-800: #143266;
+  --color-brand-900: #122a54;
+  --color-brand-950: #0c1a35;
+
+  /*
+    Los otros colores de su identidad. Se usan sólo en la portada pública, como acentos
+    gráficos. Adentro de la aplicación el color es información —rojo es destructivo, verde
+    es completado, ámbar es en progreso— y meter acentos decorativos ahí rompería esa
+    lectura.
+  */
+  --color-acento-rojo: #c12026;
+  --color-acento-celeste: #90c6e6;
+  --color-acento-celeste-claro: #c2e0f1;
+  --color-acento-amarillo: #fec01a;
+
+  /*
+    Lato para la interfaz y el texto; Alegreya para los títulos. La combinación serif en los
+    títulos y sans en el cuerpo es lo que le da el aire académico a su sitio.
+    Se usa con la clase `font-serif`, que Tailwind ya trae.
+  */
+  --font-sans: "Lato", system-ui, "Segoe UI", Roboto, Arial, sans-serif;
+  --font-serif: "Alegreya", Georgia, "Times New Roman", serif;
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    @apply bg-slate-50 font-sans text-slate-800 antialiased;
+  }
+}
+
+/*
+  Estilos del contenido de los documentos. Se aplican tanto adentro del editor como al
+  mostrarlo en modo lectura, para que el texto se vea igual en los dos lados. TipTap no trae
+  estilos propios: sin esto, un <h1> y un <p> se ven idénticos.
+*/
+@layer components {
+  .prose-editor {
+    @apply leading-relaxed;
+  }
+
+  .prose-editor > * + * {
+    @apply mt-3;
+  }
+
+  .prose-editor h1 {
+    @apply mt-6 text-xl font-semibold text-slate-900;
+  }
+
+  .prose-editor h2 {
+    @apply mt-5 text-lg font-semibold text-slate-900;
+  }
+
+  .prose-editor ul {
+    @apply list-disc space-y-1 pl-6;
+  }
+
+  .prose-editor ol {
+    @apply list-decimal space-y-1 pl-6;
+  }
+
+  .prose-editor blockquote {
+    @apply border-l-4 border-slate-200 pl-4 text-slate-600 italic;
+  }
+
+  .prose-editor code {
+    @apply rounded bg-slate-100 px-1 py-0.5 text-sm;
+  }
+
+  /* Marcador de documento vacío: sin esto la hoja en blanco no dice nada. */
+  .prose-editor p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    @apply pointer-events-none float-left h-0 text-slate-400;
+  }
+
+  /*
+    Los textos de la portada. Es el mismo HTML del editor, pero con el respiro entre párrafos
+    de una página de lectura y no el de un documento de trabajo.
+  */
+  .prose-landing {
+    @apply text-[1.0625rem] leading-[1.75];
+  }
+
+  .prose-landing > * + * {
+    @apply mt-4;
+  }
+
+  .prose-landing h1 {
+    @apply mt-8 font-serif text-2xl font-semibold text-slate-900;
+  }
+
+  .prose-landing h2 {
+    @apply mt-6 font-serif text-xl font-semibold text-slate-900;
+  }
+
+  .prose-landing strong {
+    @apply font-medium text-slate-900;
+  }
+
+  .prose-landing ul {
+    @apply list-disc space-y-1 pl-6;
+  }
+
+  .prose-landing ol {
+    @apply list-decimal space-y-1 pl-6;
+  }
+
+  .prose-landing blockquote {
+    @apply border-l-4 border-slate-200 pl-4 text-slate-600 italic;
+  }
+}
