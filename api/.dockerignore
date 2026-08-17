@@ -1,0 +1,11 @@
+# Todo lo que no haga falta para compilar. Cada archivo de acá se copiaría al contexto de
+# build y viajaría al demonio de Docker, además de invalidar capas de caché sin motivo.
+
+target/
+.git/
+.github/
+.vscode/
+.idea/
+*.md
+postman/
+*.log
