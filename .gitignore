@@ -1,0 +1,28 @@
+# ⚠️ Este archivo tiene que estar puesto ANTES del primer `git add`.
+# Git guarda para siempre todo lo que entra al historial: borrar un secreto en un commit
+# posterior no lo saca del repositorio, sólo lo saca de la última versión.
+
+# --- Secretos y datos locales -------------------------------------------------
+# Contraseñas reales del entorno de desarrollo, en texto plano.
+CREDENCIALES-TEST.md
+# Configuración con valores reales. El .env.example sí se versiona.
+front/.env
+.env
+*.env
+!*.env.example
+
+# --- Dependencias y compilados ------------------------------------------------
+front/node_modules/
+front/dist/
+api/target/
+target/
+
+# --- Herramientas y sistema operativo -----------------------------------------
+.idea/
+.vscode/
+*.iml
+Thumbs.db
+.DS_Store
+
+# --- Registros ----------------------------------------------------------------
+*.log

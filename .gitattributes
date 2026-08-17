@@ -1,0 +1,28 @@
+# El proyecto se escribe en Windows (CRLF) y se ejecuta en Linux (LF). Sin esto, un script
+# o un Dockerfile con finales de línea de Windows falla adentro del contenedor con un error
+# ilegible del tipo `/bin/sh: bad interpreter: No such file or directory`: el `\r` queda
+# pegado al nombre del intérprete.
+
+# Normalizar todo lo que sea texto: en el repo siempre LF, en el disco lo que use el sistema.
+* text=auto
+
+# Estos van con LF sí o sí, aun en un checkout de Windows: los ejecuta Linux.
+*.sh          text eol=lf
+*.yml         text eol=lf
+*.yaml        text eol=lf
+*.conf        text eol=lf
+Dockerfile    text eol=lf
+*.Dockerfile  text eol=lf
+.env.example  text eol=lf
+
+# Binarios: que git no intente convertirles nada.
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.gif    binary
+*.ico    binary
+*.pdf    binary
+*.woff   binary
+*.woff2  binary
+*.docx   binary
+*.xlsx   binary
