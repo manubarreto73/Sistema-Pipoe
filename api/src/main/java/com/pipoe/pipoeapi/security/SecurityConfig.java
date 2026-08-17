@@ -54,6 +54,10 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/solicitudes-acceso").permitAll()
                 // Los textos de la portada los lee cualquiera; editarlos es de ADMIN.
                 .requestMatchers(HttpMethod.GET, "/api/landing/textos").permitAll()
+                // Sonda de salud del contenedor y del monitoreo externo. Sin esto devolvería
+                // 401 y Docker daría el contenedor por enfermo para siempre. No filtra nada:
+                // management.endpoint.health.show-details está en never.
+                .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
                 .anyRequest().authenticated())
             // Cabeceras de seguridad de las respuestas de la API. Las de la página en sí
             // —sobre todo la Content-Security-Policy— van en el nginx que sirve el front:

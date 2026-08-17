@@ -1,5 +1,9 @@
 server:
   port: 8080
+  # Detrás de nginx, Spring ve la conexión como HTTP y con la IP del proxy. Esto le dice que
+  # reconstruya el esquema y el host reales a partir de las cabeceras X-Forwarded-*.
+  # Que la IP del cliente sea confiable depende además de TRUST_PROXY (ver security.rate-limit).
+  forward-headers-strategy: framework
 
 spring:
   application:
@@ -26,6 +30,9 @@ spring:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+      # En producción Redis arranca con requirepass. Vacío en desarrollo, donde escucha
+      # sólo en localhost. Sin contraseña, cualquiera en la red lee los refresh tokens.
+      password: ${REDIS_PASSWORD:}
   mail:
     host: ${MAIL_HOST:smtp.gmail.com}
     port: ${MAIL_PORT:587}
@@ -38,9 +45,31 @@ spring:
           starttls:
             enable: true
 
+# Sonda de salud, y nada más que eso. El resto de los endpoints de Actuator —env, beans,
+# configprops, heapdump— filtran variables de entorno y estructura interna, así que no se
+# exponen. show-details: never porque /actuator/health es público: decir "falla la base de
+# datos, host db:5432" es regalarle un mapa a quien esté probando.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+
 app:
   mail:
     from: ${MAIL_FROM:no-reply@pipoe.com}
+
+  # Primer administrador. Sólo se crea si la base no tiene ningún ADMIN (ver AdminBootstrap).
+  # Sin estas variables, una base recién migrada queda sin forma de entrar.
+  admin-inicial:
+    email: ${ADMIN_INICIAL_EMAIL:}
+    password: ${ADMIN_INICIAL_PASSWORD:}
+    nombre: ${ADMIN_INICIAL_NOMBRE:Administrador}
 
 security:
   jwt:
