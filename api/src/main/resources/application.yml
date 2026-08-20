@@ -60,6 +60,21 @@ management:
         enabled: true
       show-details: never
 
+      # Lo que mira el healthcheck del contenedor y el monitoreo: "puedo atender pedidos".
+      # Sin base o sin Redis la respuesta es no; sin correo, sí — se cae el alta de usuarios,
+      # no el servicio.
+      group:
+        readiness:
+          include: readinessState, db, redis
+
+  health:
+    # El chequeo de correo de Spring abre una conexion SMTP de verdad en CADA consulta de
+    # salud. Con la sonda cada 15 segundos serian miles de conexiones por dia contra el
+    # proveedor de envio, que las toma como abuso. Ademas dejaba la API entera en DOWN por
+    # una caida del SMTP, cuando el sistema sigue sirviendo todo salvo el alta de usuarios.
+    mail:
+      enabled: false
+
 app:
   mail:
     from: ${MAIL_FROM:no-reply@pipoe.com}
@@ -85,8 +100,17 @@ security:
 
   rate-limit:
     max-login-attempts: ${MAX_LOGIN_ATTEMPTS:5}
+    # Tope por cuenta, además del tope por IP: sin esto, un atacante con muchas direcciones
+    # puede seguir probando contra la misma cuenta sin cruzar nunca el límite por IP.
+    max-login-attempts-cuenta: ${MAX_LOGIN_ATTEMPTS_CUENTA:10}
     attempts-window-minutes: ${LOGIN_ATTEMPTS_WINDOW_MIN:5}
     block-duration-minutes: ${LOGIN_BLOCK_DURATION_MIN:30}
+
+    # Si se confía o no en la cabecera X-Forwarded-For para saber la IP de quien llama.
+    # Activar SÓLO cuando haya un proxy delante que la pise con la IP real de la conexión.
+    # En true sin ese proxy, cualquiera manda la cabecera que quiera, cambia de "IP" en cada
+    # intento y el bloqueo por intentos fallidos deja de servir para nada.
+    trust-proxy: ${TRUST_PROXY:false}
 
     # POST /api/solicitudes-acceso es público: tope de solicitudes por IP y ventana.
     max-solicitudes-acceso: ${MAX_SOLICITUDES_ACCESO:3}
