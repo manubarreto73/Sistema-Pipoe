@@ -18,17 +18,35 @@ contratar el servidor y el dominio.
 
 ---
 
-## 00 · Bloqueantes
+## 00 · Bloqueantes ✅ resueltos
 
-Cuatro cosas que hoy impiden un deploy. No son mejoras: sin resolverlas el sistema no arranca,
-no se puede usar o no se puede versionar.
+Las cuatro cosas que impedían el deploy. Se resolvieron el 2026-08-17 y se probaron levantando
+el sistema entero con este mismo compose.
 
-| | Problema | Por qué bloquea |
-|---|---|---|
-| **Sin control de versiones** | El proyecto no es un repo git | No hay historial, ni rollback, ni forma de construir una imagen reproducible o de conectar CI. Todo lo demás depende de esto. |
-| **Nadie puede entrar** | No existe el primer usuario ADMIN | `POST /api/auth/register` pide `hasRole('ADMIN')` y ninguna migración inserta un admin. En una base nueva no hay con qué loguearse. |
-| **Sin sonda de salud** | Falta Actuator | Sin `/actuator/health` no hay healthcheck de contenedor, ni `depends_on: healthy`, ni readiness para el proxy o el CI. |
-| **Config atada al build** | `VITE_API_URL` se hornea en el bundle | Vite reemplaza `import.meta.env` en tiempo de compilación. No es una variable de runtime: define a qué API apunta la imagen del front. |
+| | Cómo se resolvió |
+|---|---|
+| **Sin control de versiones** | El proyecto está en `github.com/manubarreto73/Sistema-Pipoe`, con el `.gitignore` puesto antes del primer `add`. Ningún secreto entró al historial. |
+| **Nadie puede entrar** | `config/AdminBootstrap.java` crea el primer ADMIN al arrancar si no hay ninguno, a partir de `ADMIN_INICIAL_EMAIL` y `ADMIN_INICIAL_PASSWORD`. Verificado sobre una base vacía. |
+| **Sin sonda de salud** | Actuator con `/actuator/health` como único endpoint expuesto, público en `SecurityConfig`, y el healthcheck del contenedor apuntando a `/actuator/health/readiness`. |
+| **Config atada al build** | `VITE_API_URL` es un `ARG` del Dockerfile del front, vacío: el bundle pide rutas relativas y nginx proxea `/api` a la API. Una sola imagen para todos los ambientes. |
+
+### Lo que apareció al ensayarlo
+
+Cinco cosas que no se ven hasta que se construye de verdad. Todas corregidas:
+
+- **El `package-lock.json` estaba desincronizado.** Le faltaba `@floating-ui/dom` y las variantes
+  nativas de otras plataformas. Localmente no se notaba porque `node_modules` ya las tenía, pero
+  `npm ci` —que es lo que corre en cualquier build limpio y en el CI— fallaba.
+- **Postgres 18 cambió el punto de montaje.** Hasta el 17 era `/var/lib/postgresql/data`; desde
+  el 18 la imagen espera `/var/lib/postgresql`. Con la ruta vieja el contenedor no arranca.
+- **La imagen de Node tiene que acompañar al npm que genera el lock.** Con Node 22 (npm 10) y un
+  lock escrito por npm 11, `npm ci` reporta como faltantes dependencias que sí están.
+- **El chequeo de correo de Spring abre una conexión SMTP en cada consulta de salud.** Con la
+  sonda cada 15 segundos son miles de conexiones por día contra el proveedor de envío, y además
+  dejaba la API entera en `DOWN` si el SMTP no respondía. Se desactivó: el sistema sigue
+  sirviendo todo salvo el alta de usuarios cuando el correo falla.
+- **`trust-proxy` y `max-login-attempts-cuenta` se leían del código pero no estaban declaradas**
+  en `application.yml`, así que no había forma de configurarlas por variable de entorno.
 
 ---
 
