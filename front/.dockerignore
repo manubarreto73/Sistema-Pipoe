@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.git/
+.vscode/
+.idea/
+*.md
+# El .env de desarrollo apunta a localhost. Si entrara al build, el bundle de producción
+# quedaría pidiéndole datos a la máquina de quien abre la página.
+.env
+*.log
