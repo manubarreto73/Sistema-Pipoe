@@ -49,6 +49,11 @@ services:
 
   api:
     build: ./api
+    # SIN `ports`, y no es un olvido. Con forward-headers-strategy activo, Spring toma la IP
+    # del cliente de la cabecera X-Forwarded-For, que cualquiera puede escribir. Lo que la
+    # hace confiable es que el nginx del front la pisa con la IP real de la conexion. Si la
+    # API se publicara directo al host, alguien podria saltearse ese nginx, mandar la
+    # cabecera que quiera y evadir el bloqueo por intentos fallidos.
     env_file: .env
     environment:
       # Dentro de la red de compose los servicios se alcanzan por su nombre. Estos valores
