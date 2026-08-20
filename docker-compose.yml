@@ -74,6 +74,11 @@ services:
       # declara enfermo antes de que llegue a estar listo.
       start_period: 90s
       retries: 3
+    # Sin este limite, MaxRAMPercentage del Dockerfile no sirve de nada: la JVM lo calcula
+    # sobre la RAM del host y en un servidor de 4 GB se queda con 3, dejando sin aire a
+    # Postgres y a Redis hasta que el kernel mata algo. Con 1,5 GB el heap queda en ~1,1 GB,
+    # de sobra para este sistema.
+    mem_limit: 1536m
     restart: unless-stopped
     logging: *logs
 

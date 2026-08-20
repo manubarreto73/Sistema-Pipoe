@@ -32,7 +32,17 @@ USER pipoe
 
 EXPOSE 8080
 
-# MaxRAMPercentage hace que la JVM calcule su heap sobre el límite del contenedor y no sobre
-# la RAM del host. Sin esto, en un servidor de 4 GB con varios contenedores, la JVM se cree
-# dueña de todo y el kernel termina matando el proceso por falta de memoria.
-ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "-jar", "app.jar"]
+# Heap FIJO, no un porcentaje. La forma habitual es -XX:MaxRAMPercentage, que reparte sobre
+# el límite del contenedor; pero eso depende de que la JVM sepa leer ese límite, y no siempre
+# lo logra: con Docker Desktop sobre WSL2, con un límite de 512 MB la JVM igual se cree dueña
+# de la RAM del host y pide un heap de casi 6 GB. Un valor explícito da el mismo resultado en
+# todos lados y no hay que confiar en la autodetección.
+#
+# 1 GB alcanza de sobra: el trabajo pesado es exportar documentos, no volumen de tráfico. Se
+# puede subir sin reconstruir la imagen, pasando JAVA_OPTS por variable de entorno.
+ENV JAVA_OPTS="-Xms256m -Xmx1g"
+
+# `exec` para que java quede como PID 1 y reciba las señales de Docker: sin eso, un
+# `docker stop` no le llega a la aplicación y el contenedor muere de un corte a los 10s en
+# vez de cerrar las conexiones a la base y apagarse prolijo.
+ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar app.jar"]
