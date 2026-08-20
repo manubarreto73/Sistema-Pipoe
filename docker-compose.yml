@@ -1,0 +1,91 @@
+# Los cuatro servicios del sistema. La regla que ordena todo el archivo: al host se asoma
+# únicamente el puerto del front. La base y Redis se hablan por la red interna de Docker,
+# por nombre de servicio, y no publican nada.
+#
+# El mismo archivo sirve para el ensayo local y para el servidor. Lo que cambia es el .env.
+
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: ${DB_NAME:-pipoe}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      # OJO con la ruta: hasta Postgres 17 el volumen se montaba en
+      # /var/lib/postgresql/data. Desde el 18 la imagen espera /var/lib/postgresql y guarda
+      # los datos en un subdirectorio por versión, para que un futuro pg_upgrade no cruce el
+      # límite del punto de montaje. Con la ruta vieja, el contenedor se niega a arrancar.
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_NAME:-pipoe}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    logging: &logs
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  redis:
+    image: redis:7-alpine
+    # appendonly: acá viven los refresh tokens. Sin persistencia, cada reinicio deja a todo
+    # el mundo deslogueado. No es una caché descartable.
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD}
+      --appendonly yes
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    logging: *logs
+
+  api:
+    build: ./api
+    env_file: .env
+    environment:
+      # Dentro de la red de compose los servicios se alcanzan por su nombre. Estos valores
+      # pisan cualquier cosa que diga el .env, que puede tener los de la máquina local.
+      DB_URL: jdbc:postgresql://db:5432/${DB_NAME:-pipoe}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/actuator/health/readiness"]
+      interval: 15s
+      timeout: 5s
+      # Spring tarda en levantar y además corre las migraciones. Sin este margen, Docker lo
+      # declara enfermo antes de que llegue a estar listo.
+      start_period: 90s
+      retries: 3
+    restart: unless-stopped
+    logging: *logs
+
+  front:
+    build:
+      context: ./front
+      args:
+        # Vacío = el front pide rutas relativas y nginx las proxea a la API. Ver el Dockerfile
+        # del front: esto se hornea en el bundle, no se puede cambiar después.
+        VITE_API_URL: ""
+    ports:
+      - "${FRONT_PORT:-80}:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+    logging: *logs
+
+volumes:
+  pgdata:
+  redisdata:
