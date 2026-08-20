@@ -24,5 +24,10 @@ target/
 Thumbs.db
 .DS_Store
 
+# --- Bocetos y material de trabajo --------------------------------------------
+# Capturas y bocetos sueltos de la raiz: material de trabajo, no del sistema.
+Login.png
+Untitled.jpg
+
 # --- Registros ----------------------------------------------------------------
 *.log
