@@ -1,0 +1,44 @@
+# Añadidos SÓLO para desarrollo y demostraciones. Nunca se usa en el servidor.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+#
+# Es un archivo aparte y no `docker-compose.override.yml` a propósito: el override lo toma
+# Compose solo, sin que nadie lo pida, y bastaría con copiarlo por error al servidor para que
+# el sistema mandara los correos a una bandeja falsa sin que se note.
+
+services:
+  # Un servidor de correo de mentira. Acepta todo lo que la aplicación le mande y en vez de
+  # entregarlo lo muestra en una bandeja web. Sirve para ver la contraseña que se le generó a
+  # un usuario nuevo sin depender de que el correo real esté configurado.
+  mailpit:
+    image: axllent/mailpit:latest
+    environment:
+      MP_MAX_MESSAGES: 500
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    ports:
+      # La bandeja de entrada. El puerto SMTP (1025) NO se publica: sólo lo usa la API por
+      # la red interna, y no hay motivo para exponerlo al resto de la máquina.
+      - "${MAILPIT_PORT:-8025}:8025"
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+  api:
+    environment:
+      MAIL_HOST: mailpit
+      MAIL_PORT: 1025
+      MAIL_FROM: no-reply@pipoe.local
+      # application.yml fija la autenticación y el STARTTLS en true, que es lo correcto contra
+      # un servidor real pero hace fallar la conexión contra el de mentira. Van como
+      # propiedades de sistema porque así pisan el archivo sin tener que tocarlo.
+      JAVA_OPTS: >-
+        -Xms256m -Xmx1g
+        -Dspring.mail.properties.mail.smtp.auth=false
+        -Dspring.mail.properties.mail.smtp.starttls.enable=false
+    depends_on:
+      mailpit:
+        condition: service_started
