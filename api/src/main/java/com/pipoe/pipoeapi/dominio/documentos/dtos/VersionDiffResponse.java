@@ -9,8 +9,8 @@ import com.pipoe.pipoeapi.dominio.documentos.services.DiffTexto;
 import lombok.*;
 
 /**
- * Un guardado mostrado como cambio y no como foto: qué texto agregó y qué texto sacó su autor
- * respecto de lo que había. Es la vista que responde "¿quién escribió esto?".
+ * Una sesión de escritura mostrada como cambio y no como foto: qué texto agregó y qué texto
+ * sacó su autor respecto de lo que había. Es la vista que responde "¿quién escribió esto?".
  */
 @Getter @Setter
 @NoArgsConstructor @AllArgsConstructor
@@ -21,6 +21,8 @@ public class VersionDiffResponse {
     private String autor;
     private String autorTipo;
     private LocalDateTime creadoEn;
+    private LocalDateTime actualizadoEn;
+    private Integer guardados;
     private Integer palabrasAgregadas;
     private Integer palabrasQuitadas;
     private List<SegmentoResponse> segmentos;
@@ -44,6 +46,8 @@ public class VersionDiffResponse {
             .autor(version.getAutor())
             .autorTipo(version.getAutorTipo())
             .creadoEn(version.getCreadoEn())
+            .actualizadoEn(version.getActualizadoEn())
+            .guardados(version.getGuardados())
             .palabrasAgregadas(resumen.agregadas())
             .palabrasQuitadas(resumen.quitadas())
             .segmentos(segmentos.stream()

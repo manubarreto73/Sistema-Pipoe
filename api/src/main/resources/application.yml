@@ -77,7 +77,19 @@ management:
 
 app:
   mail:
-    from: ${MAIL_FROM:no-reply@pipoe.com}
+    from: ${MAIL_FROM:no-reply@modelopipoe.com}
+
+  # Historial de documentos. El editor guarda solo cada 2,5 segundos de inactividad, así que sin
+  # estas dos reglas una tarde de escritura deja cientos de entradas casi iguales.
+  historial:
+    # Silencio que corta una sesión de escritura: alguien que se fue y volvió arranca una
+    # entrada nueva en vez de estirar la anterior.
+    sesion-hueco-minutos: 30
+    # Tope de duración de una sesión, para que un día entero de trabajo no quede en una sola
+    # entrada cuyo diff es el documento completo.
+    sesion-maxima-horas: 4
+    # Días con todos los guardados antes de que la poda nocturna deje uno por autor y por día.
+    dias-completos: 3
 
   # Primer administrador. Sólo se crea si la base no tiene ningún ADMIN (ver AdminBootstrap).
   # Sin estas variables, una base recién migrada queda sin forma de entrar.

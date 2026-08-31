@@ -67,15 +67,24 @@ export type PasoDetalle = {
   editandoOtro: string | null;
 };
 
+/**
+ * Una sesión de escritura del historial, no un guardado suelto: el backend fusiona los
+ * guardados seguidos de una misma persona. Espeja dominio/documentos/dtos/VersionResponse.java.
+ */
 export type VersionDocumento = {
   id: number;
   autor: string;
   autorTipo: "USUARIO" | "COLABORADOR";
+  /** Cuándo empezó la sesión. */
   creadoEn: string;
+  /** Cuándo fue el último guardado de la sesión. Igual a creadoEn si hubo uno solo. */
+  actualizadoEn: string;
+  /** Cuántos guardados se fusionaron en esta entrada. */
+  guardados: number;
   largo: number;
-  /** Palabras que este guardado sumó respecto del anterior. */
+  /** Palabras que esta sesión sumó respecto de la anterior. */
   palabrasAgregadas: number;
-  /** Palabras que este guardado borró respecto del anterior. */
+  /** Palabras que esta sesión borró respecto de la anterior. */
   palabrasQuitadas: number;
 };
 
@@ -87,6 +96,8 @@ export type DiffVersion = {
   autor: string;
   autorTipo: "USUARIO" | "COLABORADOR";
   creadoEn: string;
+  actualizadoEn: string;
+  guardados: number;
   palabrasAgregadas: number;
   palabrasQuitadas: number;
   segmentos: { tipo: TipoSegmento; texto: string }[];

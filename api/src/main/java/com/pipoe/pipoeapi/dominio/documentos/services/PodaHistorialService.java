@@ -15,16 +15,16 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * Poda del historial de documentos.
  *
- * El editor guarda solo cada dos segundos y medio de inactividad, y **cada guardado escribe una
- * copia completa del documento**. Una sesión de escritura larga deja cientos de filas casi
- * idénticas. Sin poda, la tabla crece sin techo: no es un ataque, es aritmética, y con usuarios
- * reales es el problema de infraestructura más probable del primer año.
+ * La primera línea de defensa ya no es ésta, sino la fusión por sesión de escritura de
+ * DocumentoService: los guardados seguidos de una misma persona actualizan una fila en vez de
+ * agregar otra, y una tarde de trabajo deja una o dos entradas en lugar de cientos.
  *
- * El criterio conserva lo que sirve y tira lo que no:
+ * Esto queda como piso de largo plazo. Un proyecto vivo durante años igual acumula una fila por
+ * sesión y por documento, y a partir de cierta antigüedad ese detalle no le importa a nadie:
  *
- * - **Los últimos días completos**, con todos los guardados. Es la ventana en la que alguien
+ * - **Los últimos días completos**, con todas las sesiones. Es la ventana en la que alguien
  *   mira "qué cambió recién" o quiere deshacer algo.
- * - **De ahí para atrás, un guardado por autor y por día.** Alcanza para responder "quién
+ * - **De ahí para atrás, una sesión por autor y por día.** Alcanza para responder "quién
  *   escribió esto y cuándo", que es para lo que existe la trazabilidad.
  */
 @Service
@@ -46,7 +46,7 @@ public class PodaHistorialService {
         int borradas = versionRepository.podarAnterioresA(corte);
 
         if (borradas > 0)
-            log.info("Poda del historial: {} versiones intermedias borradas de antes de {}",
+            log.info("Poda del historial: {} sesiones intermedias borradas de antes de {}",
                 borradas, corte);
     }
 }

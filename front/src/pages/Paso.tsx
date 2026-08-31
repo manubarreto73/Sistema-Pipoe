@@ -1,14 +1,16 @@
-import { format, parseISO } from "date-fns";
+import { format, isSameDay, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router";
 
+import { SeccionComentarios } from "@/components/proyecto/SeccionComentarios";
 import { Button } from "@/components/ui/Button";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { Editor } from "@/components/ui/Editor";
 import { HtmlSeguro } from "@/components/ui/HtmlSeguro";
 import { Spinner } from "@/components/ui/Spinner";
 import { latirPresencia } from "@/features/pipoe/api";
+import { useEsDuenio } from "@/features/proyectos/hooks";
 import {
   useCompletarPaso,
   useDiffVersion,
@@ -18,7 +20,6 @@ import {
   useVersiones,
 } from "@/features/pipoe/hooks";
 import { ESTADO_ETIQUETAS, type VersionDocumento } from "@/features/pipoe/types";
-import { useAuthStore } from "@/stores/auth";
 
 /** Cada cuánto se guarda solo, contado desde la última tecla. */
 const AUTOSAVE_MS = 2500;
@@ -30,8 +31,9 @@ export default function Paso() {
   const proyectoId = Number(proyectoIdParam);
   const pasoId = Number(pasoIdParam);
 
-  // El historial de quién escribió qué es del creador del proyecto, no de cada colaborador.
-  const esDuenio = useAuthStore((state) => state.sesion?.type === "USUARIO");
+  // El historial de quién escribió qué es del creador del proyecto: ni de sus colaboradores ni
+  // de la administradora, que entra a acompañar y no a auditar quién escribió cada cosa.
+  const esDuenio = useEsDuenio(proyectoId);
 
   const paso = usePaso(proyectoId, pasoId);
   const guardar = useGuardarDocumento(proyectoId, pasoId);
@@ -199,9 +201,10 @@ export default function Paso() {
 
       {!detalle.puedeEditar && (
         <p className="rounded-lg bg-slate-100 px-3 py-2 text-sm text-slate-700">
-          Tenés {detalle.nivel === "COMENTARIOS" ? "permiso de comentarios" : "sólo lectura"}{" "}
-          en {detalle.faseNombre}, así que podés leer pero no editar.
-          {detalle.nivel === "COMENTARIOS" && " Los comentarios todavía no están disponibles."}
+          {detalle.nivel === "COMENTARIOS"
+            ? `Tienes permiso de comentarios en ${detalle.faseNombre}: puedes leer el documento y
+               dejar comentarios, pero no editarlo.`
+            : `Tienes sólo lectura en ${detalle.faseNombre}, así que puedes leer pero no editar.`}
         </p>
       )}
 
@@ -268,6 +271,8 @@ export default function Paso() {
         </div>
       )}
 
+      <SeccionComentarios proyectoId={proyectoId} pasoId={pasoId} nivel={detalle.nivel} />
+
       {esDuenio && (
         <section className="border-t border-slate-200 pt-4">
           <button
@@ -321,7 +326,7 @@ export default function Paso() {
         error={completar.error?.message}
         description={
           detalle.esProducto
-            ? "Con esto queda cerrado el producto de la fase. Podés reabrirlo cuando quieras."
+            ? "Con esto queda cerrado el producto de la fase. Puedes reabrirlo cuando quieras."
             : "Vas a poder seguir editándolo igual: completarlo sólo habilita el paso siguiente y suma al progreso de la fase."
         }
         onCancel={() => {
@@ -369,8 +374,27 @@ function EstadoGuardado({
 }
 
 /**
- * Un guardado del historial. Se despliega para mostrar qué texto entró y cuál salió: el
- * listado de "fulano guardó a las 14:32" no alcanza para saber quién escribió qué.
+ * Cuándo se escribió una entrada del historial. Una tanda de un solo guardado es un instante;
+ * una de veinte es un rato, y mostrarlo como rango explica por qué reúne tantos cambios.
+ */
+function cuando(desde: string, hasta: string) {
+  const inicio = parseISO(desde);
+  const fin = parseISO(hasta);
+  const etiqueta = format(inicio, "d MMM, HH:mm", { locale: es });
+
+  // Por debajo del minuto el rango se leería "14:32–14:32", que no dice nada.
+  if (fin.getTime() - inicio.getTime() < 60_000) return etiqueta;
+
+  // Una tanda que cruza la medianoche necesita repetir el día o se lee al revés.
+  return isSameDay(inicio, fin)
+    ? `${etiqueta}–${format(fin, "HH:mm", { locale: es })}`
+    : `${etiqueta} – ${format(fin, "d MMM, HH:mm", { locale: es })}`;
+}
+
+/**
+ * Una entrada del historial: todo lo que una persona escribió de corrido, no cada guardado
+ * automático. Se despliega para mostrar qué texto entró y cuál salió, porque el listado de
+ * "fulano guardó a las 14:32" no alcanza para saber quién escribió qué.
  */
 function VersionFila({
   version,
@@ -395,11 +419,16 @@ function VersionFila({
         <span className="font-medium text-slate-800">{version.autor}</span>
 
         <span className="flex items-center gap-3 text-slate-500">
+          {version.guardados > 1 && (
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs tabular-nums text-slate-600">
+              {version.guardados} guardados
+            </span>
+          )}
           <span className="tabular-nums">
             <span className="text-green-700">+{version.palabrasAgregadas}</span>{" "}
             <span className="text-red-700">−{version.palabrasQuitadas}</span>
           </span>
-          <span>{format(parseISO(version.creadoEn), "d MMM, HH:mm", { locale: es })}</span>
+          <span>{cuando(version.creadoEn, version.actualizadoEn)}</span>
           <span aria-hidden className="text-slate-400">
             {abierta ? "−" : "+"}
           </span>
@@ -423,7 +452,7 @@ function VersionFila({
 
           {diff.isSuccess &&
             (diff.data.segmentos.length === 0 ? (
-              <p className="text-slate-500">Este guardado no cambió el texto.</p>
+              <p className="text-slate-500">Este cambio no modificó el texto.</p>
             ) : (
               <p className="leading-relaxed whitespace-pre-wrap">
                 {diff.data.segmentos.map((segmento, indice) => (

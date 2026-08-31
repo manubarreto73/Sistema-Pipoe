@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
@@ -62,6 +63,20 @@ public class DocumentoService {
     /** El cliente late cada 25s: pasado el minuto damos por hecho que cerró la pestaña. */
     private static final long PRESENCIA_VENCE_SEGUNDOS = 60;
     private static final int VERSIONES_EN_HISTORIAL = 50;
+
+    /**
+     * Cuánto silencio corta una sesión de escritura. Media hora sin guardar nada es alguien que
+     * se fue y volvió: lo que escriba después es otro momento de trabajo y merece su entrada.
+     */
+    @Value("${app.historial.sesion-hueco-minutos:30}")
+    private long huecoDeSesionMinutos;
+
+    /**
+     * Tope de duración de una sesión. Sin él, escribir toda la tarde sin parar media hora
+     * termina en una sola entrada cuyo diff es el documento entero, que no le sirve a nadie.
+     */
+    @Value("${app.historial.sesion-maxima-horas:4}")
+    private long duracionMaximaSesionHoras;
 
     // ---------------------------------------------------------------- lecturas
 
@@ -190,7 +205,7 @@ public class DocumentoService {
         return historial;
     }
 
-    /** Un guardado en detalle: el texto que entró y el que salió, palabra por palabra. */
+    /** Una sesión en detalle: el texto que entró y el que salió, palabra por palabra. */
     public VersionDiffResponse diferencias(
         Long proyectoId, Long pasoId, Long versionId, UserDetails principal
     ) {
@@ -262,26 +277,23 @@ public class DocumentoService {
         // se enteró tarde. Preferimos rechazar y avisar antes que pisar trabajo ajeno.
         if (!documento.getVersion().equals(request.getVersion()))
             throw new ConflictException(
-                "Alguien más guardó cambios mientras editabas. Recargá para ver la última versión."
+                "Alguien más guardó cambios mientras editabas. Recarga para ver la última versión."
             );
 
         String autor = accesoFaseService.nombreDe(principal);
+        String autorTipo = accesoFaseService.tipoDe(principal);
+        Long autorId = accesoFaseService.idDe(principal);
+        LocalDateTime ahora = LocalDateTime.now();
         // Nunca se guarda el HTML tal como llegó: ver HtmlSanitizer.
         String contenido = HtmlSanitizer.limpiar(request.getContenido());
 
         documento.setContenido(contenido);
         documento.setVersion(documento.getVersion() + 1);
-        documento.setActualizadoEn(LocalDateTime.now());
+        documento.setActualizadoEn(ahora);
         documento.setActualizadoPor(autor);
         documentoRepository.save(documento);
 
-        versionRepository.save(DocumentoVersion.builder()
-            .documento(documento)
-            .contenido(contenido)
-            .autor(autor)
-            .autorTipo(accesoFaseService.tipoDe(principal))
-            .creadoEn(LocalDateTime.now())
-            .build());
+        registrarEnElHistorial(documento, contenido, autor, autorTipo, autorId, ahora);
 
         return detalle(proyectoId, pasoId, principal);
     }
@@ -327,6 +339,75 @@ public class DocumentoService {
         return otroEditando(proyectoId, pasoId, principal);
     }
 
+    /**
+     * Suma el guardado al historial: extiende la sesión de escritura en curso, o abre una nueva.
+     *
+     * Fusionar al escribir, y no al leer, tiene un costo que conviene tener presente: los
+     * estados intermedios de una sesión dejan de ser recuperables, porque la fila se pisa. A
+     * cambio el historial se vuelve legible y la tabla deja de crecer un renglón cada dos
+     * segundos y medio.
+     *
+     * No hay que cuidarse de escrituras simultáneas: el bloqueo optimista del documento ya
+     * rechazó unas líneas más arriba al segundo que llegó.
+     */
+    private void registrarEnElHistorial(
+        Documento documento, String contenido,
+        String autor, String autorTipo, Long autorId, LocalDateTime ahora
+    ) {
+        DocumentoVersion ultima = versionRepository
+            .findFirstByDocumentoOrderByIdDesc(documento)
+            .orElse(null);
+
+        if (continuaLaSesion(ultima, autorTipo, autorId, ahora)) {
+            // El nombre se reescribe por si cambió desde el primer guardado de la tanda.
+            ultima.setAutor(autor);
+            ultima.setContenido(contenido);
+            ultima.setActualizadoEn(ahora);
+            ultima.setGuardados(ultima.getGuardados() + 1);
+            versionRepository.save(ultima);
+            return;
+        }
+
+        versionRepository.save(DocumentoVersion.builder()
+            .documento(documento)
+            .contenido(contenido)
+            .autor(autor)
+            .autorTipo(autorTipo)
+            .autorId(autorId)
+            .creadoEn(ahora)
+            .actualizadoEn(ahora)
+            .guardados(1)
+            .build());
+    }
+
+    /**
+     * Si este guardado continúa la última sesión del documento. Tres condiciones, las tres
+     * necesarias:
+     *
+     * - **La misma persona.** Por id y tipo, nunca por nombre: dos homónimos fundirían su
+     *   trabajo en una sola entrada firmada por uno de los dos.
+     * - **Nadie en el medio.** Sale gratis: se mira sólo la fila más reciente del documento, así
+     *   que si es de quien está guardando, es que nadie más guardó desde entonces. Sin esto,
+     *   unificar dos tandas interrumpidas por un tercero rompería el orden cronológico.
+     * - **En el mismo rato.** Ni demasiado silencio desde el último guardado, ni una sesión ya
+     *   demasiado larga.
+     */
+    private boolean continuaLaSesion(
+        DocumentoVersion ultima, String autorTipo, Long autorId, LocalDateTime ahora
+    ) {
+        // Las filas anteriores a V15 no tienen autorId y nunca se fusionan: es preferible una
+        // entrada de más antes que atribuirle a alguien un texto que puede no ser suyo.
+        if (ultima == null || ultima.getAutorId() == null) return false;
+
+        if (!ultima.getAutorId().equals(autorId) || !ultima.getAutorTipo().equals(autorTipo))
+            return false;
+
+        if (ultima.getActualizadoEn().isBefore(ahora.minusMinutes(huecoDeSesionMinutos)))
+            return false;
+
+        return !ultima.getCreadoEn().isBefore(ahora.minusHours(duracionMaximaSesionHoras));
+    }
+
     // ------------------------------------------------------------------ reglas
 
     /** Resultado de evaluar si un paso puede marcarse como completado. */
@@ -339,7 +420,7 @@ public class DocumentoService {
         Documento propio = documentos.get(paso.getId());
 
         if (propio == null || !propio.tieneContenido())
-            return Bloqueo.no("Escribí algo antes de darlo por terminado");
+            return Bloqueo.no("Escribe algo antes de darlo por terminado");
 
         // El producto es el cierre de la fase: exige todo el despliegue completo.
         if (paso.isEsProducto()) {
@@ -348,7 +429,7 @@ public class DocumentoService {
                 .anyMatch(otro -> estado(documentos.get(otro.getId())) != EstadoPaso.COMPLETADO);
 
             return faltanPasos
-                ? Bloqueo.no("Completá todos los pasos de la fase antes de cerrar el producto")
+                ? Bloqueo.no("Completa todos los pasos de la fase antes de cerrar el producto")
                 : Bloqueo.ok();
         }
 

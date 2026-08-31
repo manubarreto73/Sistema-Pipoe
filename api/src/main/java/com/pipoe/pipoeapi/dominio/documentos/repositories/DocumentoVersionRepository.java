@@ -21,6 +21,13 @@ public interface DocumentoVersionRepository extends JpaRepository<DocumentoVersi
      */
     List<DocumentoVersion> findByDocumentoOrderByIdDesc(Documento documento, Pageable pageable);
 
+    /**
+     * La última fila del documento, sea de quien sea. Es lo único que hay que mirar para saber
+     * si un guardado continúa una sesión: si la más reciente no es de quien está guardando,
+     * es que alguien escribió en el medio y la sesión se corta sola.
+     */
+    Optional<DocumentoVersion> findFirstByDocumentoOrderByIdDesc(Documento documento);
+
     /** La versión inmediatamente anterior, contra la que se calcula el diff. */
     Optional<DocumentoVersion> findFirstByDocumentoAndIdLessThanOrderByIdDesc(
         Documento documento, Long id);
