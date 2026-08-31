@@ -60,6 +60,24 @@ usermod -aG sudo "${USUARIO}"
 # fases despues, con un error que no menciona los permisos. Nunca silenciarlo con `|| true`.
 usermod -aG docker "${USUARIO}"
 
+# La cuenta se crea con --disabled-password para que solo se entre con clave SSH. Sin esto,
+# `sudo` pediria una contrasena que no existe y el usuario quedaria sin poder elevar
+# privilegios: con el acceso de root ya cerrado, sin forma de administrar el servidor.
+#
+# Sudo sin contrasena y no una contrasena nueva, por dos motivos:
+#   1. La credencial real es la clave SSH. Un segundo secreto, mas debil y que hay que
+#      recordar, no protege nada: quien no tenga la clave no llega ni a la pantalla de login.
+#   2. El usuario ya esta en el grupo docker, que es equivalente a root: con acceso al demonio
+#      se puede montar el disco del host dentro de un contenedor. Pedir contrasena para sudo
+#      mientras se otorga eso es un cartel de prohibido al lado de una puerta abierta.
+# Es el mismo patron de las imagenes de nube: el usuario `ubuntu` de AWS viene asi.
+echo "==> Sudo sin contrasena para ${USUARIO}"
+echo "${USUARIO} ALL=(ALL) NOPASSWD:ALL" > "/etc/sudoers.d/90-${USUARIO}"
+chmod 440 "/etc/sudoers.d/90-${USUARIO}"
+# Se valida antes de seguir: un sudoers con un error de sintaxis deja al sistema entero sin
+# forma de elevar privilegios, y esto corre justo antes de cerrar el acceso de root.
+visudo -c
+
 echo "==> Copiando la clave SSH de root al usuario nuevo"
 if [ ! -s /root/.ssh/authorized_keys ]; then
     echo
@@ -119,6 +137,8 @@ dpkg-reconfigure -f noninteractive unattended-upgrades
 
 echo
 free -h | head -2
+echo
+echo "Nota: ${USUARIO} usa sudo SIN contrasena. La cuenta no tiene ninguna: se entra por clave."
 echo
 echo "LISTO. Antes de cerrar esta sesion, abri OTRA terminal y verifica que entras:"
 echo "    ssh ${USUARIO}@$(hostname -I | awk '{print $1}')"

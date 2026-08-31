@@ -252,6 +252,11 @@ después en el `.env` no cambia la de la base y la API deja de conectarse.
 `hardening.sh` agregue el usuario, hay que reconectarse o los comandos de Docker van a dar
 permiso denegado.
 
+**El usuario de despliegue no tiene contraseña y usa `sudo` sin que se la pidan.** Se entra
+sólo con clave SSH. Si `sudo` alguna vez pide una contraseña, es que falta
+`/etc/sudoers.d/90-<usuario>`; se recupera entrando como root por `su -` o por la consola del
+panel —ninguna de las dos pasa por SSH, así que el bloqueo de root no las afecta.
+
 **Postgres y Redis no publican puertos.** Publicar el 5432 al host lo expone a internet:
 Docker escribe sus propias reglas de iptables y `ufw` no las filtra.
 
