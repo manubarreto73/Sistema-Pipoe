@@ -17,7 +17,7 @@ export const nuevoColaboradorSchema = z.object({
     .min(1, "El nombre es obligatorio")
     .max(100, "El nombre no puede exceder los 100 caracteres"),
   email: z
-    .email("Ingresá un email válido")
+    .email("Ingresa un email válido")
     .max(150, "El email no puede exceder los 150 caracteres"),
 });
 

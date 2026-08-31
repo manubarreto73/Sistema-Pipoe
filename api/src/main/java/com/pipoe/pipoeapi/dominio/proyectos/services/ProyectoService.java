@@ -13,10 +13,12 @@ import com.pipoe.pipoeapi.dominio.proyectos.dtos.ProyectoResponse;
 import com.pipoe.pipoeapi.dominio.proyectos.dtos.request.RegisterProyectoRequest;
 import com.pipoe.pipoeapi.dominio.proyectos.entities.Proyecto;
 import com.pipoe.pipoeapi.dominio.proyectos.repositories.ProyectoRepository;
+import com.pipoe.pipoeapi.dominio.usuarios.entities.Role;
 import com.pipoe.pipoeapi.dominio.usuarios.entities.Usuario;
 import com.pipoe.pipoeapi.exceptions.exceptions.BusinessException;
 import com.pipoe.pipoeapi.exceptions.exceptions.ResourceNotFoundException;
 import com.pipoe.pipoeapi.parametros.service.ParametrosService;
+import com.pipoe.pipoeapi.utils.CodigoProyectoGenerator;
 
 import lombok.RequiredArgsConstructor;
 
@@ -31,9 +33,17 @@ public class ProyectoService {
     private final ColaboradorRepository colaboradorRepository;
     private final ParametrosService parametrosService;
 
+    private static final int INTENTOS_CODIGO = 10;
+
     public Proyecto findById(Long id) {
         return proyectoRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado con id: " + id));
+    }
+
+    /** Login del colaborador: acepta el código escrito con o sin prefijo y en cualquier caja. */
+    public Proyecto findByCodigo(String codigo) {
+        return proyectoRepository.findByCodigo(CodigoProyectoGenerator.normalizar(codigo))
+            .orElseThrow(() -> new ResourceNotFoundException("Proyecto no encontrado: " + codigo));
     }
 
     public Proyecto findByNombre(String nombre) {
@@ -45,10 +55,15 @@ public class ProyectoService {
     public Proyecto findDelUsuario(Long id, Usuario usuario) {
         Proyecto proyecto = findById(id);
 
-        if (!proyecto.getUsuario().getId().equals(usuario.getId()))
-            throw new AccessDeniedException("No tenés acceso a este proyecto");
+        if (!esDuenio(proyecto, usuario))
+            throw new AccessDeniedException("No tienes acceso a este proyecto");
 
         return proyecto;
+    }
+
+    /** Sin excepción: hay decisiones que dependen de si es el dueño pero no se cortan si no lo es. */
+    public boolean esDuenio(Proyecto proyecto, Usuario usuario) {
+        return proyecto.getUsuario().getId().equals(usuario.getId());
     }
 
     public List<ProyectoResponse> listarDelUsuario(Usuario usuario) {
@@ -57,17 +72,23 @@ public class ProyectoService {
             .toList();
     }
 
-    /** Detalle para cualquier sesión: el dueño ve su proyecto, el colaborador sólo el suyo. */
+    /**
+     * Detalle para cualquier sesión: el dueño ve su proyecto, el colaborador sólo el suyo y el
+     * administrador cualquiera, porque entra a comentar (ver AccesoFaseService).
+     */
     public ProyectoResponse getDetalle(Long id, UserDetails principal) {
         if (principal instanceof ColaboradorPrincipal colaborador) {
             if (!colaborador.getProyectoId().equals(id))
-                throw new AccessDeniedException("No tenés acceso a este proyecto");
+                throw new AccessDeniedException("No tienes acceso a este proyecto");
 
             return ProyectoResponse.from(findById(id));
         }
 
-        if (principal instanceof Usuario usuario)
+        if (principal instanceof Usuario usuario) {
+            if (usuario.getRole() == Role.ADMIN) return ProyectoResponse.from(findById(id));
+
             return ProyectoResponse.from(findDelUsuario(id, usuario));
+        }
 
         throw new AccessDeniedException("Sesión no válida para ver proyectos");
     }
@@ -83,9 +104,24 @@ public class ProyectoService {
 
         Proyecto proyecto = request.toEntity();
         proyecto.setUsuario(creador);
+        proyecto.setCodigo(codigoLibre());
 
         proyectoRepository.save(proyecto);
         return ProyectoResponse.from(proyecto);
+    }
+
+    /**
+     * Un código que no esté usado. Son ~923.000 combinaciones y un puñado de proyectos, así que
+     * el primer intento alcanza casi siempre; el límite está para que un espacio agotado dé un
+     * error claro en vez de un bucle infinito.
+     */
+    private String codigoLibre() {
+        for (int intento = 0; intento < INTENTOS_CODIGO; intento++) {
+            String codigo = CodigoProyectoGenerator.generate();
+            if (!proyectoRepository.existsByCodigo(codigo)) return codigo;
+        }
+
+        throw new BusinessException("No se pudo generar un código de proyecto. Prueba de nuevo.");
     }
 
     @Transactional

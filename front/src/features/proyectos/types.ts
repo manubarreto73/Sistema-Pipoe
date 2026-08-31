@@ -4,6 +4,8 @@ import type { Fase } from "@/features/pipoe/types";
 export type Proyecto = {
   id: number;
   nombre: string;
+  /** Lo que el dueño le pasa a sus colaboradores para que entren: PIPOE-7K2F. */
+  codigo: string;
   usuarioId: number;
   usuarioNombreCompleto: string;
 };

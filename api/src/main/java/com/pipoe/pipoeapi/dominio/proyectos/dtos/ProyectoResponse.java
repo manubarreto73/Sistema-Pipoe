@@ -11,6 +11,8 @@ public class ProyectoResponse {
 
     private Long id;
     private String nombre;
+    /** El dueño se lo pasa a sus colaboradores: es lo que escriben para entrar. */
+    private String codigo;
     private Long usuarioId;
     private String usuarioNombreCompleto;
 
@@ -18,6 +20,7 @@ public class ProyectoResponse {
         return ProyectoResponse.builder()
             .id(proyecto.getId())
             .nombre(proyecto.getNombre())
+            .codigo(proyecto.getCodigo())
             .usuarioId(proyecto.getUsuario().getId())
             .usuarioNombreCompleto(proyecto.getUsuario().getNombreCompleto())
             .build();

@@ -25,6 +25,8 @@ import com.pipoe.pipoeapi.exceptions.exceptions.BusinessException;
 import com.pipoe.pipoeapi.redis.RedisKeys;
 import com.pipoe.pipoeapi.redis.RedisService;
 import com.pipoe.pipoeapi.security.JwtService;
+import com.pipoe.pipoeapi.utils.CodigoProyectoGenerator;
+import com.pipoe.pipoeapi.utils.Emails;
 import com.pipoe.pipoeapi.utils.RequestUtils;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -97,14 +99,17 @@ public class AuthController {
         String ip = requestUtils.clientIp(httpRequest);
         // La cuenta de un colaborador es su email dentro de un proyecto: la clave del contador
         // los junta, o dos colaboradores homónimos de proyectos distintos se bloquearían entre sí.
-        String cuenta = request.getNombreProyecto() + "/" + request.getEmail();
+        // Va el código normalizado y no lo que se escribió: si no, alternar mayúsculas en el
+        // código alcanzaría para estrenar contador y esquivar el bloqueo.
+        String cuenta = CodigoProyectoGenerator.normalizar(request.getCodigoProyecto())
+            + "/" + Emails.normalizar(request.getEmail());
 
         verificarBloqueo(ip, cuenta);
 
         Colaborador colaborador;
         try {
             colaborador = colaboradorService.login(
-                request.getNombreProyecto(), request.getEmail(), request.getPassword()
+                request.getCodigoProyecto(), request.getEmail(), request.getPassword()
             );
         } catch (BadCredentialsException e) {
             registrarFallo(ip, cuenta);
@@ -130,13 +135,16 @@ public class AuthController {
         HttpServletRequest httpRequest
     ) {
         String ip = requestUtils.clientIp(httpRequest);
-        String cuenta = request.getEmail();
+        // Normalizado antes de cualquier otra cosa: el email que se busca, el que cuenta los
+        // intentos fallidos y el que se guarda tienen que ser el mismo texto.
+        String email = Emails.normalizar(request.getEmail());
+        String cuenta = email;
 
         verificarBloqueo(ip, cuenta);
 
         try {
             authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
+                new UsernamePasswordAuthenticationToken(email, request.getPassword())
             );
         } catch (BadCredentialsException e) {
             registrarFallo(ip, cuenta);
@@ -145,7 +153,9 @@ public class AuthController {
 
         loginAttemptsService.limpiarIntentos(ip, cuenta);
 
-        Usuario usuario = usuarioService.findByEmail(request.getEmail());
+        Usuario usuario = usuarioService.findByEmail(email);
+        usuarioService.registrarAcceso(usuario);
+
         String accessToken = jwtService.generateToken(usuario);
         String refreshToken = refreshTokenService.create(PREFIJO_USUARIO + usuario.getUsername());
 

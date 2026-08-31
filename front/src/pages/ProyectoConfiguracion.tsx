@@ -65,6 +65,10 @@ export default function ProyectoConfiguracion() {
       <SeccionNombre proyectoId={proyectoId} nombre={proyecto.data.nombre} />
 
       <div className="border-t border-slate-200 pt-10">
+        <SeccionCodigo codigo={proyecto.data.codigo} />
+      </div>
+
+      <div className="border-t border-slate-200 pt-10">
         <SeccionColaboradores proyectoId={proyectoId} />
       </div>
 
@@ -72,6 +76,47 @@ export default function ProyectoConfiguracion() {
         <SeccionEliminar proyectoId={proyectoId} nombre={proyecto.data.nombre} />
       </div>
     </div>
+  );
+}
+
+/**
+ * El código es de sólo lectura a propósito: cambiarlo dejaría afuera a todo el equipo de una
+ * vez, que es exactamente el problema que venía a resolver.
+ */
+function SeccionCodigo({ codigo }: { codigo: string }) {
+  const [copiado, setCopiado] = useState(false);
+
+  const copiar = async () => {
+    try {
+      await navigator.clipboard.writeText(codigo);
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2000);
+    } catch {
+      // Sin portapapeles (contexto no seguro, permiso denegado): el código está a la vista
+      // igual y se puede copiar a mano, así que no hay nada que avisar.
+    }
+  };
+
+  return (
+    <section className="flex flex-col gap-4">
+      <div>
+        <h2 className="text-lg font-semibold text-slate-900">Código de acceso</h2>
+        <p className="mt-0.5 text-sm text-slate-500">
+          Es lo que escriben tus colaboradores para entrar, junto con su mail y su contraseña.
+          Ya va en el mail de invitación. No cambia aunque renombres el proyecto.
+        </p>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <code className="rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 font-mono text-lg tracking-wider text-slate-900">
+          {codigo}
+        </code>
+
+        <Button variant="secondary" onClick={copiar}>
+          {copiado ? "Copiado" : "Copiar"}
+        </Button>
+      </div>
+    </section>
   );
 }
 
@@ -199,7 +244,7 @@ function SeccionEliminar({ proyectoId, nombre }: { proyectoId: number; nombre: s
           )}
 
           <Field
-            label="Escribí el nombre del proyecto para confirmar"
+            label="Escribe el nombre del proyecto para confirmar"
             htmlFor="confirmacionNombre"
           >
             <Input

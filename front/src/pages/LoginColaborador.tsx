@@ -20,7 +20,7 @@ export default function LoginColaborador() {
     formState: { errors },
   } = useForm<LoginColaboradorValues>({
     resolver: zodResolver(loginColaboradorSchema),
-    defaultValues: { nombreProyecto: "", email: "", password: "" },
+    defaultValues: { codigoProyecto: "", email: "", password: "" },
   });
 
   return (
@@ -29,7 +29,7 @@ export default function LoginColaborador() {
         Acceso de colaborador
       </h1>
       <p className="mt-2 text-sm text-slate-600">
-        Ingresá con los datos que recibiste por mail al ser invitado al proyecto.
+        Ingresa con los datos que recibiste por mail al ser invitado al proyecto.
       </p>
 
       <form
@@ -38,14 +38,19 @@ export default function LoginColaborador() {
         className="mt-8 flex flex-col gap-4"
       >
         <Field
-          label="Nombre del proyecto"
-          htmlFor="nombreProyecto"
-          error={errors.nombreProyecto?.message}
+          label="Código del proyecto"
+          htmlFor="codigoProyecto"
+          ayuda="lo encontrás en el mail de invitación, con la forma PIPOE-0000"
+          error={errors.codigoProyecto?.message}
         >
           <Input
-            id="nombreProyecto"
-            invalid={Boolean(errors.nombreProyecto)}
-            {...register("nombreProyecto")}
+            id="codigoProyecto"
+            aria-describedby="codigoProyecto-ayuda"
+            placeholder="PIPOE-0000"
+            autoCapitalize="characters"
+            spellCheck={false}
+            invalid={Boolean(errors.codigoProyecto)}
+            {...register("codigoProyecto")}
           />
         </Field>
 
