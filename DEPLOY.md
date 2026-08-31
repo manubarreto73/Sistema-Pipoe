@@ -528,10 +528,75 @@ a producción.
 
 ## 10 · Dónde hostear
 
-**VPS + compose · ~6–15 USD/mes · recomendado**
-Hetzner o DigitalOcean, 2 vCPU y 4 GB. Todo lo de este plan aplica tal cual. Vos administrás el
-sistema operativo, los backups y las actualizaciones. Para este stack y este tamaño, es el mejor
-equilibrio entre costo y control.
+**Decidido: Hostinger KVM, 1 vCPU / 4 GB / 50 GB NVMe.** Es el mínimo que este stack tolera y
+alcanza porque no se esperan muchos usuarios simultáneos. Lo que el núcleo único condiciona no es
+servir el sistema, es construirlo: ver *Preparar la máquina* y *Actualizar en el servidor* acá
+abajo. Si algún día molesta, se sube de plan levantando la máquina nueva y moviendo el DNS.
+
+### Preparar la máquina: swap
+
+Un VPS chico viene sin memoria de intercambio. Sin ella, cuando la RAM se llena el kernel no
+frena nada: elige el proceso más grande y lo mata. En esta máquina el más grande es la JVM o
+Postgres, así que el síntoma sería el sistema cayendose solo, justo durante un build.
+
+El swap es disco usado como desborde de la RAM: el kernel manda ahí las páginas que nadie está
+tocando y libera memoria real. Es muchísimo más lento que la RAM — hasta en NVMe — así que no es
+un lugar donde uno quiera que el sistema *viva*; es una red para que un pico se resuelva con dos
+minutos de lentitud en vez de con un proceso muerto.
+
+```bash
+fallocate -l 4G /swapfile
+chmod 600 /swapfile
+mkswap /swapfile
+swapon /swapfile
+echo '/swapfile none swap sw 0 0' >> /etc/fstab
+```
+
+Y bajar la propension a usarlo, para que el kernel lo toque solo bajo presión real y no para
+cachear archivos:
+
+```bash
+echo 'vm.swappiness=10' > /etc/sysctl.d/99-swap.conf
+sysctl --system
+```
+
+Verificar con `free -h`: tiene que aparecer la fila `Swap` con 4 GB. Cuesta 4 GB de los 50, que
+sobran.
+
+### Actualizar en el servidor
+
+Se construyen las imágenes en la misma máquina, sin registry ni CI. Con 4 GB no entra el stack
+corriendo *más* un build, así que la receta baja todo primero. Es una ventana de mantenimiento en
+horario sin uso, no un deploy en caliente:
+
+```bash
+cd /opt/pipoe
+git pull
+docker compose down            # los volúmenes de datos no se tocan
+docker compose build api       # de a uno: los dos juntos no entran en memoria
+docker compose build front
+docker compose up -d
+docker image prune -f          # la imagen vieja queda huérfana en cada rebuild
+```
+
+Sobre los tiempos: **el primer build es el largo** — entre 15 y 25 minutos, porque baja Maven
+Central entero y el árbol de npm. Los siguientes reusan esas capas mientras no cambien `pom.xml`
+ni `package*.json`, que es justamente para lo que están ordenados así los dos Dockerfiles: un
+cambio sólo de código compila en 5 a 8 minutos.
+
+Las dos reglas que no hay que saltearse: **bajar el stack antes** y **construir de a una imagen**.
+Maven y Vite compilando en paralelo son los dos procesos más hambrientos de todo el sistema.
+
+Si más adelante hace falta actualizar sin cortar el servicio, el camino es el pipeline de la fase
+09: construir en GitHub Actions, publicar en GHCR y que el servidor sólo haga `pull` y `up -d`.
+Ahí el corte pasa a ser de segundos y el núcleo único deja de importar.
+
+### Otras opciones
+
+**VPS más holgado · ~8–15 USD/mes**
+Hetzner, DigitalOcean o el propio Hostinger con 2 vCPU y 8 GB. Todo este plan aplica igual, y
+además se puede construir con el sistema andando: el build deja de ser una ventana de
+mantenimiento.
 
 **PaaS · ~20–40 USD/mes**
 Railway, Render o Fly. Postgres y Redis gestionados con backups incluidos, deploy desde git, TLS
@@ -550,7 +615,8 @@ En orden. Si algo no da, no sigas: cada punto asume el anterior.
 - [ ] El repo está en git, `front/.env` no está versionado y el historial está limpio.
 - [ ] Actuator responde y `/actuator/health` está permitido en `SecurityConfig`.
 - [ ] Existe la forma de crear el primer ADMIN y la probaste en una base vacía.
-- [ ] Las dos imágenes se construyen desde cero, sin caché, sin errores.
+- [ ] El servidor tiene los 4 GB de swap activos (`free -h`) y `vm.swappiness=10`.
+- [ ] Las dos imágenes se construyen desde cero, sin caché, sin errores, **de a una**.
 - [ ] Todas las variables obligatorias están en el `.env` del servidor, con permisos `600`.
 - [ ] `JWT_SECRET_KEY` es un valor generado, distinto del de desarrollo.
 - [ ] Postgres y Redis no publican puertos al host.

@@ -1,0 +1,147 @@
+# Pipoe en el servidor. Es el compose de la raíz más lo que sólo existe en producción: TLS,
+# renovación automática del certificado y los puertos 80 y 443 publicados.
+#
+#   docker compose -f docker-compose.prod.yml --env-file .env up -d --build
+#
+# Se corre desde esta carpeta, no desde la raíz: los contextos de build son relativos a acá.
+
+name: pipoe
+
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: ${DB_NAME:-pipoe}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      # OJO con la ruta: hasta Postgres 17 el volumen se montaba en
+      # /var/lib/postgresql/data. Desde el 18 la imagen espera /var/lib/postgresql y guarda
+      # los datos en un subdirectorio por versión, para que un futuro pg_upgrade no cruce el
+      # límite del punto de montaje. Con la ruta vieja, el contenedor se niega a arrancar.
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_NAME:-pipoe}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    logging: &logs
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  redis:
+    image: redis:7-alpine
+    # appendonly: acá viven los refresh tokens. Sin persistencia, cada reinicio deja a todo
+    # el mundo deslogueado. No es una caché descartable.
+    #
+    # noeviction por lo mismo: si Redis se queda sin memoria, es preferible que falle a que
+    # descarte sesiones en silencio y la gente se caiga sin explicación.
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD}
+      --appendonly yes
+      --maxmemory 256mb
+      --maxmemory-policy noeviction
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    logging: *logs
+
+  api:
+    build: ../api
+    # SIN `ports`, y no es un olvido. Con forward-headers-strategy activo, Spring toma la IP
+    # del cliente de la cabecera X-Forwarded-For, que cualquiera puede escribir. Lo que la
+    # hace confiable es que nginx la pisa con la IP real de la conexión. Si la API se
+    # publicara directo al host, alguien podría saltearse ese nginx, mandar la cabecera que
+    # quiera y evadir el bloqueo por intentos fallidos.
+    env_file: .env
+    environment:
+      # Dentro de la red de compose los servicios se alcanzan por su nombre. Estos valores
+      # pisan cualquier cosa que diga el .env.
+      DB_URL: jdbc:postgresql://db:5432/${DB_NAME:-pipoe}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      # Acá sí: hay un proxy adelante que pisa X-Forwarded-For con la IP real (ver el
+      # default.conf). Sin esto, el bloqueo por intentos contaría a todo el mundo como si
+      # viniera de la IP del contenedor de nginx, o sea una sola.
+      TRUST_PROXY: "true"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/actuator/health/readiness"]
+      interval: 15s
+      timeout: 5s
+      # Spring tarda en levantar y además corre las migraciones. En un servidor de un solo
+      # núcleo ese arranque es bastante más lento que en una máquina de escritorio.
+      start_period: 180s
+      retries: 3
+    # Sin este límite, la JVM calcula su heap sobre la RAM del host y en un servidor de 4 GB
+    # se queda con 3, dejando sin aire a Postgres y a Redis hasta que el kernel mata algo.
+    mem_limit: 1536m
+    restart: unless-stopped
+    logging: *logs
+
+  web:
+    build:
+      context: ../front
+      args:
+        # Vacío = el front pide rutas relativas y nginx las proxea a la API. Se hornea en el
+        # bundle: pasarlo como variable de ejecución no hace absolutamente nada.
+        VITE_API_URL: ""
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMINIO: ${DOMINIO}
+      # Que envsubst toque SÓLO esta variable. Sin el filtro también reemplazaría cualquier
+      # $algo del archivo que coincida con una variable de entorno del contenedor.
+      NGINX_ENVSUBST_FILTER: "DOMINIO"
+    volumes:
+      # La configuración va montada y no horneada: corregir una regla es editar y recargar,
+      # sin reconstruir la imagen ni cortar el servicio.
+      - ./nginx/templates:/etc/nginx/templates:ro
+      - certbot-conf:/etc/letsencrypt:ro
+      - certbot-www:/var/www/certbot:ro
+    # certbot renueva el certificado en disco, pero nginx lo lee al arrancar y lo mantiene en
+    # memoria. Sin esta recarga periódica, a los 90 días el sitio seguiría sirviendo un
+    # certificado vencido. Los dos mecanismos hacen falta.
+    command: >
+      sh -c "while :; do sleep 6h & wait $${!}; nginx -s reload; done &
+      exec nginx -g 'daemon off;'"
+    depends_on:
+      - api
+    restart: unless-stopped
+    logging: *logs
+
+  certbot:
+    image: certbot/certbot:latest
+    volumes:
+      - certbot-conf:/etc/letsencrypt
+      - certbot-www:/var/www/certbot
+    # Intenta renovar cada 12 horas. Let's Encrypt sólo renueva dentro de los 30 días previos
+    # al vencimiento, así que los intentos de más no cuestan nada.
+    entrypoint: >
+      sh -c "trap exit TERM;
+      while :; do
+        certbot renew --webroot -w /var/www/certbot --quiet;
+        sleep 12h & wait $${!};
+      done"
+    restart: unless-stopped
+    logging: *logs
+
+volumes:
+  pgdata:
+  redisdata:
+  certbot-conf:
+  certbot-www:

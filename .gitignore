@@ -31,3 +31,10 @@ Untitled.jpg
 
 # --- Registros ----------------------------------------------------------------
 *.log
+
+# Volcados de base con hashes de contrasena adentro.
+respaldos/
+
+# El .env de produccion se genera EN el servidor y nunca se versiona.
+deploy/.env
+deploy/.env.viejo

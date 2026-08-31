@@ -1,0 +1,147 @@
+# nginx de producción: termina TLS, sirve el front y proxea /api a la API. Un solo hostname
+# para todo, así no hay CORS, no hay segundo certificado y el front funciona con rutas
+# relativas sin cambiar nada.
+#
+# Es una PLANTILLA: la imagen de nginx sustituye ${DOMINIO} al arrancar y escribe el resultado
+# en /etc/nginx/conf.d/default.conf, pisando el de desarrollo que trae la imagen. La
+# sustitución está acotada a esa única variable con NGINX_ENVSUBST_FILTER, para que no toque
+# las de nginx: $host, $scheme, $remote_addr y compañía quedan intactas.
+#
+# Se monta como volumen, no viaja dentro de la imagen: se puede corregir y recargar con
+# `nginx -s reload` sin reconstruir ni cortar el servicio.
+#
+# Es el mismo contenido que front/nginx.conf más la capa de TLS. Si tocás uno, mirá el otro.
+
+# El DNS interno de Docker. Hace falta declararlo porque nginx, si el destino está escrito
+# como texto fijo (o en un bloque `upstream`), resuelve el nombre UNA sola vez al arrancar y
+# se queda con esa IP para siempre. Al redesplegar la API el contenedor nuevo recibe otra IP
+# y nginx sigue yendo a la vieja: todo el sitio devuelve 502 hasta reiniciarlo. Con el
+# resolver declarado y el destino en una variable, vuelve a preguntar cada 10 segundos.
+resolver 127.0.0.11 valid=10s ipv6=off;
+
+server {
+    listen 80;
+    server_name ${DOMINIO} www.${DOMINIO};
+
+    server_tokens off;
+
+    # El desafío de ACME va por HTTP y ANTES del redirect, o la renovación del certificado
+    # falla: certbot pide este archivo sin seguir redirecciones a HTTPS. Vale para los dos
+    # nombres, porque el certificado cubre a los dos y Let's Encrypt valida cada uno.
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    # Al dominio pelado y no a $host: así http://www va derecho al destino final en un solo
+    # salto, en vez de encadenar http://www -> https://www -> https://dominio.
+    location / {
+        return 301 https://${DOMINIO}$request_uri;
+    }
+}
+
+# www existe para que a nadie le falle la dirección que escribió, pero el sitio vive en el
+# dominio pelado: servir lo mismo en las dos direcciones duplicaría cada página en dos URLs.
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name www.${DOMINIO};
+
+    server_tokens off;
+
+    ssl_certificate     /etc/letsencrypt/live/${DOMINIO}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${DOMINIO}/privkey.pem;
+
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 1d;
+
+    return 301 https://${DOMINIO}$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name ${DOMINIO};
+
+    server_tokens off;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    ssl_certificate     /etc/letsencrypt/live/${DOMINIO}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${DOMINIO}/privkey.pem;
+
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 1d;
+
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_types text/css text/plain application/javascript application/json image/svg+xml;
+
+    # Los timeouts generales van acá, a nivel server, y no dentro del include de cabeceras:
+    # nginx rechaza una directiva duplicada en el mismo contexto, y una location que necesite
+    # otros valores los sobrescribe sin conflicto.
+    proxy_connect_timeout 10s;
+    proxy_send_timeout    60s;
+    proxy_read_timeout    60s;
+
+    access_log /var/log/nginx/access.log;
+    error_log  /var/log/nginx/error.log warn;
+
+    # --- La API -------------------------------------------------------------------------
+    location /api/ {
+        set $api_destino http://api:8080;
+        proxy_pass $api_destino$request_uri;
+        proxy_http_version 1.1;
+
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # $remote_addr y NO $proxy_add_x_forwarded_for. Con la variante que concatena, un
+        # atacante manda su propio X-Forwarded-For, rota su "IP" en cada intento y el bloqueo
+        # por intentos fallidos deja de servir. Acá se pisa con la IP real de la conexión, que
+        # es lo que hace seguro poner TRUST_PROXY=true del lado de la aplicación.
+        # Cuando haya Cloudflare adelante, este valor pasa a ser $http_cf_connecting_ip.
+        proxy_set_header X-Forwarded-For   $remote_addr;
+
+        # Los documentos del editor son texto; 2 MB es holgado. La API además valida el tamaño
+        # del contenido, pero esto lo corta antes de gastar memoria de aplicación.
+        client_max_body_size 2m;
+    }
+
+    # --- Sonda de salud -----------------------------------------------------------------
+    # Se expone sólo el health, no el resto de Actuator. Lo usa el chequeo externo.
+    location = /actuator/health {
+        set $api_destino http://api:8080;
+        proxy_pass $api_destino/actuator/health;
+        proxy_set_header Host $host;
+        access_log off;
+    }
+
+    # --- Archivos estáticos -------------------------------------------------------------
+    # Los assets llevan un hash en el nombre: si cambia el contenido, cambia el nombre. Por
+    # eso se pueden cachear un año sin riesgo de servir una versión vieja.
+    location /assets/ {
+        add_header Cache-Control "public, max-age=31536000, immutable";
+        access_log off;
+    }
+
+    # index.html es la excepción: es el que apunta a los assets nuevos. Si se cachea, el
+    # navegador sigue pidiendo los archivos de la versión anterior después de un deploy.
+    location = /index.html {
+        add_header Cache-Control "no-cache";
+        include /etc/nginx/conf.d/cabeceras-seguridad.inc;
+    }
+
+    # Sin este fallback, apretar F5 en /proyectos devuelve 404: esa ruta sólo existe dentro
+    # del router de React, nginx no sabe nada de ella.
+    location / {
+        try_files $uri $uri/ /index.html;
+        include /etc/nginx/conf.d/cabeceras-seguridad.inc;
+    }
+}

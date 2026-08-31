@@ -71,8 +71,9 @@ services:
       interval: 15s
       timeout: 5s
       # Spring tarda en levantar y además corre las migraciones. Sin este margen, Docker lo
-      # declara enfermo antes de que llegue a estar listo.
-      start_period: 90s
+      # declara enfermo antes de que llegue a estar listo. En un servidor de un solo nucleo
+      # ese arranque es bastante mas lento que en una maquina de escritorio: de ahi los 180s.
+      start_period: 180s
       retries: 3
     # Sin este limite, MaxRAMPercentage del Dockerfile no sirve de nada: la JVM lo calcula
     # sobre la RAM del host y en un servidor de 4 GB se queda con 3, dejando sin aire a
