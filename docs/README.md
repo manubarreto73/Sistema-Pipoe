@@ -6,6 +6,7 @@
 | [plan-visual.md](plan-visual.md) | Plan para alinear la identidad gráfica con la de Arlette |
 | [plan-seguridad.md](plan-seguridad.md) | Auditoría de vulnerabilidades y plan de corrección |
 | [plan-deploy.md](plan-deploy.md) | Qué contratar y en qué orden para salir a producción |
+| [correo.md](correo.md) | Cómo se envían las contraseñas: Brevo, DNS y prueba local |
 | [../DEPLOY.md](../DEPLOY.md) | El *cómo* del deploy: Dockerfiles, compose, nginx, backups, CI |
 
 Los tres planes son documentos de trabajo: se van tachando a medida que se ejecutan.
