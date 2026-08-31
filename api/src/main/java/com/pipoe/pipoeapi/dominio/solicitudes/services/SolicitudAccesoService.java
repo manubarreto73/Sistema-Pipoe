@@ -18,6 +18,7 @@ import com.pipoe.pipoeapi.dominio.solicitudes.repositories.SolicitudAccesoReposi
 import com.pipoe.pipoeapi.dominio.usuarios.entities.Role;
 import com.pipoe.pipoeapi.dominio.usuarios.service.UsuarioService;
 import com.pipoe.pipoeapi.exceptions.exceptions.BusinessException;
+import com.pipoe.pipoeapi.exceptions.exceptions.TooManyRequestsException;
 import com.pipoe.pipoeapi.exceptions.exceptions.ResourceNotFoundException;
 import com.pipoe.pipoeapi.redis.RedisKeys;
 import com.pipoe.pipoeapi.redis.RedisService;
@@ -138,6 +139,7 @@ public class SolicitudAccesoService {
         );
 
         if (enviadas != null && enviadas > maxSolicitudesPorIp)
-            throw new BusinessException("Demasiadas solicitudes desde esta conexión. Prueba de nuevo más tarde.");
+            throw new TooManyRequestsException(
+                "Demasiadas solicitudes desde esta conexión. Prueba de nuevo más tarde.");
     }
 }

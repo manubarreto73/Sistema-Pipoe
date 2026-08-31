@@ -54,5 +54,26 @@ export function toApiError(status: number, body: unknown): ApiError {
     return new ApiError(status, message);
   }
 
-  return new ApiError(status, `Error ${status}`);
+  return new ApiError(status, sinCuerpo(status));
+}
+
+/**
+ * Qué decir cuando la respuesta no trae mensaje propio.
+ *
+ * Pasa siempre que el error no lo genera la API: un 502 o un 503 los escribe nginx, con una
+ * página HTML que no tiene nuestro JSON. Sin esto la pantalla mostraba "Error 502", que no le
+ * dice nada a nadie y sugiere que la persona hizo algo mal cuando el problema es del servidor.
+ */
+function sinCuerpo(status: number): string {
+  if (status === 429)
+    return "Demasiados intentos. Espera unos minutos y vuelve a intentarlo.";
+
+  // 502 y 504 aparecen sobre todo mientras la API se reinicia después de una actualización.
+  if (status === 502 || status === 503 || status === 504)
+    return "El servidor no está respondiendo. Puede estar reiniciándose: espera un minuto y vuelve a intentarlo.";
+
+  if (status >= 500)
+    return "Hubo un problema en el servidor. Vuelve a intentarlo en un momento.";
+
+  return `Error ${status}`;
 }

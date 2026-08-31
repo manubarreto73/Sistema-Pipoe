@@ -60,6 +60,11 @@ public class LoginAttemptsService {
             redisService.delete(RedisKeys.login_attempts + ":cuenta:" + normalizar(cuenta));
     }
 
+    /** Cuánto dura el bloqueo. Lo usa el mensaje de error, para no repetir el numero a mano. */
+    public int minutosDeBloqueo() {
+        return bloqueoMinutos;
+    }
+
     public boolean estaBloqueada(String ip) {
         return existe(claveBloqueoIp(ip));
     }

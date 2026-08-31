@@ -21,7 +21,7 @@ import com.pipoe.pipoeapi.dominio.colaboradores.services.ColaboradorService;
 import com.pipoe.pipoeapi.dominio.usuarios.entities.Role;
 import com.pipoe.pipoeapi.dominio.usuarios.entities.Usuario;
 import com.pipoe.pipoeapi.dominio.usuarios.service.UsuarioService;
-import com.pipoe.pipoeapi.exceptions.exceptions.BusinessException;
+import com.pipoe.pipoeapi.exceptions.exceptions.TooManyRequestsException;
 import com.pipoe.pipoeapi.redis.RedisKeys;
 import com.pipoe.pipoeapi.redis.RedisService;
 import com.pipoe.pipoeapi.security.JwtService;
@@ -170,10 +170,16 @@ public class AuthController {
     /**
      * Mismo mensaje para el bloqueo por IP y por cuenta: distinguirlos le confirmaría a quien
      * está probando contraseñas cuál de los dos frenos activó.
+     *
+     * El mensaje dice cuánto hay que esperar porque sin eso la única salida visible es seguir
+     * probando, que es justo lo que renueva el bloqueo. Los minutos salen de la configuración
+     * y no de un número escrito acá, para que no se vuelvan mentira si alguien la cambia.
      */
     private void verificarBloqueo(String ip, String cuenta) {
         if (loginAttemptsService.estaBloqueada(ip) || loginAttemptsService.cuentaBloqueada(cuenta))
-            throw new BusinessException("Acceso bloqueado temporalmente por intentos fallidos");
+            throw new TooManyRequestsException(
+                "Demasiados intentos fallidos. Vuelve a intentarlo en "
+                + loginAttemptsService.minutosDeBloqueo() + " minutos.");
     }
 
     private void registrarFallo(String ip, String cuenta) {

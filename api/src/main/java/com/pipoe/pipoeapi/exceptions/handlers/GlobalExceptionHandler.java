@@ -12,11 +12,13 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import com.pipoe.pipoeapi.exceptions.exceptions.BusinessException;
+import com.pipoe.pipoeapi.exceptions.exceptions.TooManyRequestsException;
 import com.pipoe.pipoeapi.exceptions.exceptions.ConflictException;
 import com.pipoe.pipoeapi.exceptions.exceptions.ResourceNotFoundException;
 
@@ -86,6 +88,29 @@ public class GlobalExceptionHandler {
         return ResponseEntity
             .status(HttpStatus.BAD_REQUEST)
             .body(new ErrorResponse(400, e.getMessage(), LocalDateTime.now()));
+    }
+
+    /**
+     * Método equivocado sobre una ruta que existe. Sin este manejador caía en el catch-all y
+     * salía como 500, o sea "algo se rompió del lado del servidor" cuando en realidad el
+     * pedido estaba mal formado. Cuesta un rato largo de depuración averiguar eso.
+     */
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleMetodoNoSoportado(HttpRequestMethodNotSupportedException e) {
+        return ResponseEntity
+            .status(HttpStatus.METHOD_NOT_ALLOWED)
+            .body(new ErrorResponse(405, "Método no permitido en esta ruta", LocalDateTime.now()));
+    }
+
+    /**
+     * Freno de ritmo. El 429 es contrato con el frontend, que lo muestra tal cual en vez de
+     * pedirle a la persona que revise lo que escribió: no hay nada mal en los datos.
+     */
+    @ExceptionHandler(TooManyRequestsException.class)
+    public ResponseEntity<ErrorResponse> handleTooManyRequests(TooManyRequestsException e) {
+        return ResponseEntity
+            .status(HttpStatus.TOO_MANY_REQUESTS)
+            .body(new ErrorResponse(429, e.getMessage(), LocalDateTime.now()));
     }
 
     /**
