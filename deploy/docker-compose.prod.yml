@@ -113,11 +113,26 @@ services:
       - ./nginx/templates:/etc/nginx/templates:ro
       - certbot-conf:/etc/letsencrypt:ro
       - certbot-www:/var/www/certbot:ro
-    # certbot renueva el certificado en disco, pero nginx lo lee al arrancar y lo mantiene en
-    # memoria. Sin esta recarga periódica, a los 90 días el sitio seguiría sirviendo un
-    # certificado vencido. Los dos mecanismos hacen falta.
+    # El envsubst va invocado a mano, y no es redundante: el entrypoint de la imagen sólo
+    # ejecuta los scripts de /docker-entrypoint.d/ cuando el comando del contenedor es `nginx`.
+    # Al ponerle este `command:` propio para la recarga periódica, ese "si" deja de cumplirse,
+    # la plantilla nunca se renderiza y nginx arranca con el default.conf de desarrollo que
+    # trae horneado la imagen del front: sin TLS, sin proxy a /api y sirviendo el index.html
+    # del SPA hasta en /.well-known/acme-challenge/, lo que rompe la validación del certificado.
+    # Falla en silencio y con cara de estar funcionando, que es lo peor de todo.
+    #
+    # `set -e` para que, si el renderizado falla, el contenedor muera en vez de servir la
+    # configuración equivocada. Y `;` en vez de `&&` antes del bucle: con `&&`, el `&` del
+    # final agruparía toda la lista y mandaría también el envsubst al fondo, dejando a nginx
+    # arrancando contra una configuración a medio escribir.
+    #
+    # La recarga cada 6 horas es por los certificados: certbot los renueva en disco, pero
+    # nginx los lee al arrancar y los mantiene en memoria. Sin esto, a los 90 días el sitio
+    # seguiría sirviendo un certificado vencido. Los dos mecanismos hacen falta.
     command: >
-      sh -c "while :; do sleep 6h & wait $${!}; nginx -s reload; done &
+      sh -c "set -e;
+      /docker-entrypoint.d/20-envsubst-on-templates.sh;
+      while :; do sleep 6h & wait $${!}; nginx -s reload; done &
       exec nginx -g 'daemon off;'"
     depends_on:
       - api
