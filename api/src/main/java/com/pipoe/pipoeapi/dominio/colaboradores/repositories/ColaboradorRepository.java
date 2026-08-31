@@ -16,6 +16,11 @@ public interface ColaboradorRepository extends JpaRepository<Colaborador, Long> 
 
     long countByProyectoAndActivoTrue(Proyecto proyecto);
 
+    /** Cuántos colaboradores activos tiene cada proyecto de la lista, en una sola consulta. */
+    @Query("SELECT c.proyecto.id, COUNT(c) FROM Colaborador c "
+         + "WHERE c.proyecto.id IN :proyectoIds AND c.activo = TRUE GROUP BY c.proyecto.id")
+    List<Object[]> contarActivosPorProyecto(@Param("proyectoIds") List<Long> proyectoIds);
+
     /** Para el borrado del proyecto: incluye a los dados de baja. */
     void deleteByProyecto(Proyecto proyecto);
 

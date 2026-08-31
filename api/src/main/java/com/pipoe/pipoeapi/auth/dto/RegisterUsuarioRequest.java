@@ -8,7 +8,8 @@ import lombok.Data;
 
 @Data
 public class RegisterUsuarioRequest {
-    @NotBlank @Email
+    @NotBlank(message = "El email es obligatorio")
+    @Email(message = "Ese email no parece válido")
     private String email;
 
     @NotBlank

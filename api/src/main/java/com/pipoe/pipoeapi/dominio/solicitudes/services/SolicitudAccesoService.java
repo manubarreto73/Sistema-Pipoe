@@ -21,6 +21,7 @@ import com.pipoe.pipoeapi.exceptions.exceptions.BusinessException;
 import com.pipoe.pipoeapi.exceptions.exceptions.ResourceNotFoundException;
 import com.pipoe.pipoeapi.redis.RedisKeys;
 import com.pipoe.pipoeapi.redis.RedisService;
+import com.pipoe.pipoeapi.utils.Emails;
 
 import lombok.RequiredArgsConstructor;
 
@@ -81,7 +82,12 @@ public class SolicitudAccesoService {
     public SolicitudAccesoResponse create(RegisterSolicitudAccesoRequest request, String ip) {
         validarRateLimit(ip);
 
-        // Mismo mensaje para "ya pediste" y "ya sos usuario": no le decimos al visitante
+        // Antes de comparar. Sin esto, "Ana@correo.com" no colisionaba con "ana@correo.com" y
+        // la segunda solicitud entraba como nueva; al aprobar las dos se creaban dos cuentas
+        // para la misma persona, cada una con su clave, y ninguna de las dos lo avisaba.
+        request.setEmail(Emails.normalizar(request.getEmail()));
+
+        // Mismo mensaje para "ya pediste" y "ya eres usuario": no le decimos al visitante
         // en cuál de los dos casos cayó, pero sí le damos una respuesta útil.
         if (solicitudAccesoRepository.existsByEmailAndEstado(request.getEmail(), EstadoSolicitud.PENDIENTE)
             || usuarioService.existsByEmail(request.getEmail()))
@@ -132,6 +138,6 @@ public class SolicitudAccesoService {
         );
 
         if (enviadas != null && enviadas > maxSolicitudesPorIp)
-            throw new BusinessException("Demasiadas solicitudes desde esta conexión. Probá de nuevo más tarde.");
+            throw new BusinessException("Demasiadas solicitudes desde esta conexión. Prueba de nuevo más tarde.");
     }
 }

@@ -1,7 +1,6 @@
 package com.pipoe.pipoeapi.dominio.colaboradores.dtos.request;
 
 import com.pipoe.pipoeapi.dominio.colaboradores.entities.Colaborador;
-
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -16,8 +15,8 @@ public class RegisterColaboradorRequest {
     @Size(max = 100, message = "El nombre no puede exceder los 100 caracteres")
     private String nombre;
 
-    @NotBlank
-    @Email
+    @NotBlank(message = "El email es obligatorio")
+    @Email(message = "Ese email no parece válido")
     @Size(max = 150, message = "El email no puede exceder los 150 caracteres")
     private String email;
 

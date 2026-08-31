@@ -15,7 +15,7 @@ export const nuevaSolicitudSchema = z
       .min(1, "Los apellidos son obligatorios")
       .max(150, "No puede exceder los 150 caracteres"),
     email: z
-      .email("Ingresá un email válido")
+      .email("Ingresa un email válido")
       .max(150, "El email no puede exceder los 150 caracteres"),
 
     nivelInstruccion: z.enum(
@@ -27,12 +27,12 @@ export const nuevaSolicitudSchema = z
         "DOCTORADO",
         "POSTDOCTORADO",
       ],
-      "Elegí tu nivel de instrucción",
+      "Elige tu nivel de instrucción",
     ),
-    genero: z.enum(["FEMENINO", "MASCULINO", "PREFIERE_NO_DECIR"], "Elegí una opción"),
+    genero: z.enum(["FEMENINO", "MASCULINO", "PREFIERE_NO_DECIR"], "Elige una opción"),
     rangoEdad: z.enum(
       ["HASTA_29", "DE_30_A_45", "DE_46_A_60", "DE_61_Y_MAS"],
-      "Elegí tu rango de edad",
+      "Elige tu rango de edad",
     ),
     ocupacion: z.enum(
       [
@@ -44,7 +44,7 @@ export const nuevaSolicitudSchema = z
         "LIDER_ORGANIZACION_SOCIAL",
         "OTRA",
       ],
-      "Elegí tu ocupación principal",
+      "Elige tu ocupación principal",
     ),
     ocupacionOtra: z.string().max(150, "No puede exceder los 150 caracteres").optional(),
 
@@ -52,12 +52,12 @@ export const nuevaSolicitudSchema = z
       .string()
       .min(1, "La institución u organización es obligatoria")
       .max(200, "No puede exceder los 200 caracteres"),
-    paisNacimiento: z.string().min(1, "Elegí tu país de nacimiento"),
+    paisNacimiento: z.string().min(1, "Elige tu país de nacimiento"),
     paisResidencia: z.string().optional(),
 
     motivacion: z
       .string()
-      .min(1, "Contanos por qué te interesa el Modelo PipoE")
+      .min(1, "Cuéntanos por qué te interesa el Modelo PipoE")
       .max(1000, "No puede exceder los 1000 caracteres"),
 
     usos: z
@@ -70,7 +70,7 @@ export const nuevaSolicitudSchema = z
           "OTRO",
         ]),
       )
-      .min(1, "Elegí al menos un uso"),
+      .min(1, "Elige al menos un uso"),
     usosOtro: z.string().max(150, "No puede exceder los 150 caracteres").optional(),
 
     canales: z
@@ -85,19 +85,19 @@ export const nuevaSolicitudSchema = z
           "OTRO",
         ]),
       )
-      .min(1, "Contanos cómo te enteraste"),
+      .min(1, "Cuéntanos cómo te enteraste"),
     canalOtro: z.string().max(150, "No puede exceder los 150 caracteres").optional(),
   })
   .refine((valores) => valores.ocupacion !== "OTRA" || Boolean(valores.ocupacionOtra?.trim()), {
-    message: "Especificá cuál es tu ocupación",
+    message: "Especifica cuál es tu ocupación",
     path: ["ocupacionOtra"],
   })
   .refine((valores) => !valores.usos.includes("OTRO") || Boolean(valores.usosOtro?.trim()), {
-    message: "Especificá qué otro uso le vas a dar",
+    message: "Especifica qué otro uso le vas a dar",
     path: ["usosOtro"],
   })
   .refine((valores) => !valores.canales.includes("OTRO") || Boolean(valores.canalOtro?.trim()), {
-    message: "Especificá por qué otro medio te enteraste",
+    message: "Especifica por qué otro medio te enteraste",
     path: ["canalOtro"],
   });
 

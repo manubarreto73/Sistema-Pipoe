@@ -11,7 +11,6 @@ import com.pipoe.pipoeapi.dominio.solicitudes.entities.Ocupacion;
 import com.pipoe.pipoeapi.dominio.solicitudes.entities.RangoEdad;
 import com.pipoe.pipoeapi.dominio.solicitudes.entities.SolicitudAcceso;
 import com.pipoe.pipoeapi.dominio.solicitudes.entities.UsoPrevisto;
-
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -33,8 +32,8 @@ public class RegisterSolicitudAccesoRequest {
     @Size(max = 150, message = "Los apellidos no pueden exceder los 150 caracteres")
     private String apellidos;
 
-    @NotBlank
-    @Email
+    @NotBlank(message = "El email es obligatorio")
+    @Email(message = "Ese email no parece válido")
     @Size(max = 150, message = "El email no puede exceder los 150 caracteres")
     private String email;
 
@@ -64,18 +63,18 @@ public class RegisterSolicitudAccesoRequest {
     @Size(max = 100, message = "No puede exceder los 100 caracteres")
     private String paisResidencia;
 
-    @NotBlank(message = "Contanos por qué te interesa el Modelo PipoE")
+    @NotBlank(message = "Cuéntanos por qué te interesa el Modelo PipoE")
     @Size(max = 1000, message = "No puede exceder los 1000 caracteres")
     private String motivacion;
 
-    @NotEmpty(message = "Elegí al menos un uso")
+    @NotEmpty(message = "Elige al menos un uso")
     @Builder.Default
     private Set<UsoPrevisto> usos = new LinkedHashSet<>();
 
     @Size(max = 150, message = "No puede exceder los 150 caracteres")
     private String usosOtro;
 
-    @NotEmpty(message = "Contanos cómo te enteraste")
+    @NotEmpty(message = "Cuéntanos cómo te enteraste")
     @Builder.Default
     private Set<CanalDifusion> canales = new LinkedHashSet<>();
 
@@ -86,20 +85,20 @@ public class RegisterSolicitudAccesoRequest {
     // frontend solamente, porque el endpoint es público y entra cualquiera.
 
     @JsonIgnore
-    @AssertTrue(message = "Especificá cuál es tu ocupación")
+    @AssertTrue(message = "Especifica cuál es tu ocupación")
     public boolean isOcupacionOtraValida() {
         return ocupacion != Ocupacion.OTRA || (ocupacionOtra != null && !ocupacionOtra.isBlank());
     }
 
     @JsonIgnore
-    @AssertTrue(message = "Especificá qué otro uso le vas a dar")
+    @AssertTrue(message = "Especifica qué otro uso le vas a dar")
     public boolean isUsosOtroValido() {
         return usos == null || !usos.contains(UsoPrevisto.OTRO)
             || (usosOtro != null && !usosOtro.isBlank());
     }
 
     @JsonIgnore
-    @AssertTrue(message = "Especificá por qué otro medio te enteraste")
+    @AssertTrue(message = "Especifica por qué otro medio te enteraste")
     public boolean isCanalOtroValido() {
         return canales == null || !canales.contains(CanalDifusion.OTRO)
             || (canalOtro != null && !canalOtro.isBlank());

@@ -2,16 +2,24 @@ import { z } from "zod";
 
 /** Espeja las validaciones de LoginRequest.java (@NotBlank @Email). */
 export const loginUsuarioSchema = z.object({
-  email: z.email("Ingresá un email válido"),
+  // .trim() antes de validar: un correo pegado con un espacio al final es válido para la
+  // persona y la API lo rechazaría como mal formado.
+  email: z.email("Ingresa un email válido").trim(),
   password: z.string().min(1, "La contraseña es obligatoria"),
 });
 
 export type LoginUsuarioValues = z.infer<typeof loginUsuarioSchema>;
 
-/** Espeja ColaboradorLoginRequest.java. */
+/**
+ * Espeja ColaboradorLoginRequest.java.
+ *
+ * El código del proyecto reemplazó al nombre: el nombre no servía como identificador porque es
+ * único distinguiendo mayúsculas y porque el dueño puede cambiarlo. Se acepta escrito con o sin
+ * el prefijo PIPOE- y en cualquier caja; la API lo normaliza igual.
+ */
 export const loginColaboradorSchema = z.object({
-  nombreProyecto: z.string().min(1, "El nombre del proyecto es obligatorio"),
-  email: z.email("Ingresá un email válido"),
+  codigoProyecto: z.string().trim().min(1, "El código del proyecto es obligatorio"),
+  email: z.email("Ingresa un email válido").trim(),
   password: z.string().min(1, "La contraseña es obligatoria"),
 });
 
@@ -36,7 +44,7 @@ export const cambiarPasswordSchema = z
   .object({
     currentPassword: z.string().min(1, "La contraseña actual es obligatoria"),
     newPassword: passwordSchema,
-    confirmPassword: z.string().min(1, "Repetí la nueva contraseña"),
+    confirmPassword: z.string().min(1, "Repite la nueva contraseña"),
   })
   .refine((values) => values.newPassword === values.confirmPassword, {
     message: "Las contraseñas no coinciden",
