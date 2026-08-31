@@ -76,7 +76,7 @@ export default function PedirAcceso() {
     <div className="mx-auto max-w-2xl px-6 py-16">
       <h1 className="font-serif text-3xl font-bold tracking-tight text-slate-900">Pedir acceso</h1>
       <p className="mt-2 text-sm text-slate-600">
-        Contanos quién sos y qué uso pensás darle al Modelo PipoE. Si se aprueba tu
+        Cuéntanos quién eres y qué uso piensas darle al Modelo PipoE. Si se aprueba tu
         solicitud, vas a recibir tus datos de acceso por mail.
       </p>
 
@@ -181,7 +181,7 @@ export default function PedirAcceso() {
               >
                 {ocupacion === "OTRA" && (
                   <Field
-                    label="Especificá cuál"
+                    label="Especifica cuál"
                     htmlFor="ocupacionOtra"
                     error={errors.ocupacionOtra?.message}
                   >
@@ -216,7 +216,7 @@ export default function PedirAcceso() {
               error={errors.paisNacimiento?.message}
             >
               <Select id="paisNacimiento" className="w-full" {...register("paisNacimiento")}>
-                <option value="">Elegí un país…</option>
+                <option value="">Elige un país…</option>
                 {PAISES.map((pais) => (
                   <option key={pais} value={pais}>
                     {pais}
@@ -275,7 +275,7 @@ export default function PedirAcceso() {
               >
                 {usos?.includes("OTRO") && (
                   <Field
-                    label="Especificá cuál"
+                    label="Especifica cuál"
                     htmlFor="usosOtro"
                     error={errors.usosOtro?.message}
                   >
@@ -304,7 +304,7 @@ export default function PedirAcceso() {
               >
                 {canales?.includes("OTRO") && (
                   <Field
-                    label="Especificá cuál"
+                    label="Especifica cuál"
                     htmlFor="canalOtro"
                     error={errors.canalOtro?.message}
                   >

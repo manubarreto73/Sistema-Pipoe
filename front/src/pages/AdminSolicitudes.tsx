@@ -6,10 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Spinner } from "@/components/ui/Spinner";
-import {
-  FILTROS_VACIOS,
-  type FiltrosSolicitudes,
-} from "@/features/solicitudes/api";
+import { FILTROS_VACIOS, type FiltrosSolicitudes } from "@/features/solicitudes/api";
 import {
   useAprobarSolicitud,
   useRechazarSolicitud,
@@ -90,9 +87,7 @@ export default function AdminSolicitudes() {
               onChange={(event) =>
                 cambiar({
                   estado:
-                    event.target.value === "TODAS"
-                      ? null
-                      : (event.target.value as EstadoSolicitud),
+                    event.target.value === "TODAS" ? null : (event.target.value as EstadoSolicitud),
                 })
               }
             >
@@ -169,51 +164,47 @@ export default function AdminSolicitudes() {
         </p>
       )}
 
-      {solicitudes.isSuccess &&
-        (solicitudes.data.empty ? (
-          <p className="text-slate-600">
-            No hay solicitudes con estos filtros.
-            {filtrado && " Probá limpiarlos para ver todas."}
-          </p>
-        ) : (
-          <>
-            <ul className="flex flex-col gap-4">
-              {solicitudes.data.content.map((solicitud) => (
-                <SolicitudCard
-                  key={solicitud.id}
-                  solicitud={solicitud}
-                  resolviendo={resolviendo}
-                  onAprobar={() => aprobar.mutate(solicitud.id)}
-                  onRechazar={() => rechazar.mutate(solicitud.id)}
-                />
-              ))}
-            </ul>
+      {/* El "no hay resultados" lo dice el contador de arriba, junto a los filtros: repetirlo
+          acá mostraba el mismo mensaje dos veces en la misma pantalla. */}
+      {solicitudes.isSuccess && !solicitudes.data.empty && (
+        <>
+          <ul className="flex flex-col gap-4">
+            {solicitudes.data.content.map((solicitud) => (
+              <SolicitudCard
+                key={solicitud.id}
+                solicitud={solicitud}
+                resolviendo={resolviendo}
+                onAprobar={() => aprobar.mutate(solicitud.id)}
+                onRechazar={() => rechazar.mutate(solicitud.id)}
+              />
+            ))}
+          </ul>
 
-            <div className="flex items-center justify-between border-t border-slate-200 pt-4">
-              <span className="text-sm text-slate-500">
-                Página {solicitudes.data.number + 1} de {solicitudes.data.totalPages} ·{" "}
-                {solicitudes.data.totalElements} en total
-              </span>
+          <div className="flex items-center justify-between border-t border-slate-200 pt-4">
+            <span className="text-sm text-slate-500">
+              Página {solicitudes.data.number + 1} de {solicitudes.data.totalPages} ·{" "}
+              {solicitudes.data.totalElements} en total
+            </span>
 
-              <div className="flex gap-2">
-                <Button
-                  variant="secondary"
-                  disabled={solicitudes.data.first}
-                  onClick={() => setPage((actual) => Math.max(0, actual - 1))}
-                >
-                  Anterior
-                </Button>
-                <Button
-                  variant="secondary"
-                  disabled={solicitudes.data.last}
-                  onClick={() => setPage((actual) => actual + 1)}
-                >
-                  Siguiente
-                </Button>
-              </div>
+            <div className="flex gap-2">
+              <Button
+                variant="secondary"
+                disabled={solicitudes.data.first}
+                onClick={() => setPage((actual) => Math.max(0, actual - 1))}
+              >
+                Anterior
+              </Button>
+              <Button
+                variant="secondary"
+                disabled={solicitudes.data.last}
+                onClick={() => setPage((actual) => actual + 1)}
+              >
+                Siguiente
+              </Button>
             </div>
-          </>
-        ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -259,12 +250,7 @@ type SolicitudCardProps = {
   onRechazar: () => void;
 };
 
-function SolicitudCard({
-  solicitud,
-  resolviendo,
-  onAprobar,
-  onRechazar,
-}: SolicitudCardProps) {
+function SolicitudCard({ solicitud, resolviendo, onAprobar, onRechazar }: SolicitudCardProps) {
   // Aprobar crea el usuario y le manda la clave por mail, y rechazar no se puede
   // deshacer. Un paso de confirmación evita que un click al pasar arruine las dos.
   const [confirmando, setConfirmando] = useState<"aprobar" | "rechazar" | null>(null);
@@ -327,8 +313,7 @@ function SolicitudCard({
 
       <p className="mt-4 text-xs text-slate-400">
         Solicitada el {formatFecha(solicitud.fechaSolicitud)}
-        {solicitud.fechaResolucion &&
-          ` · Resuelta el ${formatFecha(solicitud.fechaResolucion)}`}
+        {solicitud.fechaResolucion && ` · Resuelta el ${formatFecha(solicitud.fechaResolucion)}`}
       </p>
 
       {solicitud.estado === "PENDIENTE" &&
@@ -359,11 +344,7 @@ function SolicitudCard({
               >
                 Confirmar
               </Button>
-              <Button
-                variant="ghost"
-                disabled={resolviendo}
-                onClick={() => setConfirmando(null)}
-              >
+              <Button variant="ghost" disabled={resolviendo} onClick={() => setConfirmando(null)}>
                 Cancelar
               </Button>
             </div>

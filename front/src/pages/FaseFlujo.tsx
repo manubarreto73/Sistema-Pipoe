@@ -86,7 +86,7 @@ export default function FaseFlujo() {
           <p className="mt-1 text-sm text-slate-500">
             {producto.puedeCompletarse || producto.estado !== "PENDIENTE"
               ? "Se puede cerrar: la fase está completa."
-              : "Se habilita para cerrar cuando estén completos todos los pasos de arriba, pero podés ir escribiéndolo desde ahora."}
+              : "Se habilita para cerrar cuando estén completos todos los pasos de arriba, pero puedes ir escribiéndolo desde ahora."}
           </p>
 
           <div className="mt-4 max-w-xs">

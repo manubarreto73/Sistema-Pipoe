@@ -36,7 +36,7 @@ export default function MisProyectos() {
             la tarjeta de alta. Mientras haya lugar, el máximo no se menciona. */}
         {enElMaximo && (
           <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
-            Llegaste al máximo de proyectos. Para crear otro, eliminá alguno.
+            Llegaste al máximo de proyectos. Para crear otro, elimina alguno.
           </p>
         )}
       </header>
@@ -100,7 +100,7 @@ export default function MisProyectos() {
 
       {proyectos.isSuccess && proyectos.data.length === 0 && (
         <p className="text-slate-600">
-          Todavía no tenés proyectos. Creá el primero con la tarjeta de arriba.
+          Todavía no tienes proyectos. Crea el primero con la tarjeta de arriba.
         </p>
       )}
 

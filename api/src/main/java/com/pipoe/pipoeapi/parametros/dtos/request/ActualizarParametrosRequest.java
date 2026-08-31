@@ -16,12 +16,12 @@ public class ActualizarParametrosRequest {
      * Los topes son de sentido común, no técnicos: bajar el cupo a cero dejaría la app
      * inutilizable, y ponerlo en miles no cambia nada salvo esconder un error de tipeo.
      */
-    @NotNull(message = "Indicá el máximo de proyectos por usuario")
+    @NotNull(message = "Indica el máximo de proyectos por usuario")
     @Min(value = 1, message = "Tiene que ser al menos 1")
     @Max(value = 100, message = "No puede pasar de 100")
     private Integer maxProyectosPorUsuario;
 
-    @NotNull(message = "Indicá el máximo de colaboradores por proyecto")
+    @NotNull(message = "Indica el máximo de colaboradores por proyecto")
     @Min(value = 1, message = "Tiene que ser al menos 1")
     @Max(value = 100, message = "No puede pasar de 100")
     private Integer maxColaboradoresPorProyecto;

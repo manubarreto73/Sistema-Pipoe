@@ -3,7 +3,7 @@ import { Link, NavLink, Outlet, useParams } from "react-router";
 import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
 import { useFases } from "@/features/pipoe/hooks";
-import { useProyecto } from "@/features/proyectos/hooks";
+import { useEsDuenio, useProyecto } from "@/features/proyectos/hooks";
 import { cn } from "@/lib/cn";
 import { useAuthStore } from "@/stores/auth";
 
@@ -19,7 +19,10 @@ export function ProyectoLayout() {
   const proyectoId = Number(proyectoIdParam);
 
   const sesion = useAuthStore((state) => state.sesion);
-  const esDuenio = sesion?.type === "USUARIO";
+  // La administradora también es una sesión de tipo USUARIO, pero entra a proyectos ajenos y
+  // sólo puede comentar: la ruedita de configuración le daría 403.
+  const esDuenio = useEsDuenio(proyectoId);
+  const volverA = sesion?.role === "ADMIN" ? "/admin/proyectos" : "/proyectos";
 
   const proyecto = useProyecto(proyectoId);
   const fases = useFases(proyectoId);
@@ -39,9 +42,11 @@ export function ProyectoLayout() {
         <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
           {proyecto.error.message}
         </p>
-        {esDuenio && (
-          <Link to="/proyectos">
-            <Button variant="secondary">Volver a mis proyectos</Button>
+        {sesion?.type === "USUARIO" && (
+          <Link to={volverA}>
+            <Button variant="secondary">
+              {sesion.role === "ADMIN" ? "Volver a proyectos" : "Volver a mis proyectos"}
+            </Button>
           </Link>
         )}
       </div>

@@ -63,7 +63,7 @@ async function request<T>(
         await refreshAccessToken();
       } catch {
         useAuthStore.getState().clear();
-        throw new ApiError(401, "La sesión expiró. Iniciá sesión de nuevo.");
+        throw new ApiError(401, "La sesión expiró. Inicia sesión de nuevo.");
       }
       // Un único reintento: si vuelve a dar 401, allowRetry en false corta la recursión.
       return request<T>(path, options, false);
@@ -115,7 +115,7 @@ async function descargar(path: string, allowRetry: boolean): Promise<ArchivoDesc
         await refreshAccessToken();
       } catch {
         useAuthStore.getState().clear();
-        throw new ApiError(401, "La sesión expiró. Iniciá sesión de nuevo.");
+        throw new ApiError(401, "La sesión expiró. Inicia sesión de nuevo.");
       }
       return descargar(path, false);
     }

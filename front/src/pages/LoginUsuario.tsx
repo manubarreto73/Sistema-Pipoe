@@ -67,10 +67,10 @@ export default function LoginUsuario() {
 
       <div className="mt-8 flex flex-col gap-1 text-sm text-slate-600">
         <Link to="/login/colaborador" className="text-brand-700 hover:underline">
-          ¿Sos colaborador?
+          ¿Eres colaborador?
         </Link>
         <Link to="/pedir-acceso" className="text-brand-700 hover:underline">
-          ¿No tenés cuenta? Pedir acceso
+          ¿No tienes cuenta? Pedir acceso
         </Link>
       </div>
     </div>

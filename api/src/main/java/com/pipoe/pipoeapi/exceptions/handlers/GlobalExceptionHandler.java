@@ -90,7 +90,7 @@ public class GlobalExceptionHandler {
 
     /**
      * Dos personas guardaron el mismo documento sobre la misma base. El 409 es contrato con
-     * el frontend: es lo que dispara el aviso de "recargá para ver la última versión".
+     * el frontend: es lo que dispara el aviso de "recarga para ver la última versión".
      */
     @ExceptionHandler(ConflictException.class)
     public ResponseEntity<ErrorResponse> handleConflict(ConflictException e) {

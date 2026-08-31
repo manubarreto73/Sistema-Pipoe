@@ -35,7 +35,7 @@ export default function ProyectoInicio() {
       <div>
         <h2 className="text-lg font-semibold text-slate-900">Modelo PipoE</h2>
         <p className="mt-1 text-sm text-slate-600">
-          Las fases no son secuenciales: podés avanzar en cualquiera cuando quieras.
+          Las fases no son secuenciales: puedes avanzar en cualquiera cuando quieras.
         </p>
       </div>
 

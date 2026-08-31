@@ -47,7 +47,7 @@ export function toApiError(status: number, body: unknown): ApiError {
   if (message && typeof message === "object") {
     const fieldErrors = message as Record<string, string>;
     const first = Object.values(fieldErrors)[0];
-    return new ApiError(status, first ?? "Revisá los datos ingresados", fieldErrors);
+    return new ApiError(status, first ?? "Revisa los datos ingresados", fieldErrors);
   }
 
   if (typeof message === "string" && message.length > 0) {
