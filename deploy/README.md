@@ -142,17 +142,19 @@ gastar ninguna.
 Desde tu máquina, no desde el servidor:
 
 ```bash
-D=pipoe.tu-dominio.com
+D=modelopipoe.com
 curl -s -o /dev/null -w "80  -> %{http_code} -> %{redirect_url}\n" "http://$D/"
 curl -s -o /dev/null -w "443 -> %{http_code}\n" "https://$D/"
 echo | openssl s_client -connect $D:443 -servername $D 2>/dev/null | openssl x509 -noout -issuer -dates
 curl -s -o /dev/null -w "ruta del router -> %{http_code}\n" "https://$D/proyectos"
 curl -s -o /dev/null -w "api sin token   -> %{http_code}\n" "https://$D/api/proyectos"
 curl -s    -w "\nhealth -> %{http_code}\n" "https://$D/actuator/health"
+curl -s -o /dev/null -w "www    -> %{http_code} -> %{redirect_url}\n" "https://www.$D/"
 ```
 
 Esperado: `301` al HTTPS, `200`, certificado de Let's Encrypt, `200` en la ruta del router
-(el fallback del SPA), **`401`** en la API sin token y `200` con `"status":"UP"` en el health.
+(el fallback del SPA), **`401`** en la API sin token, `200` con `"status":"UP"` en el health y
+`301` de `www` al dominio pelado.
 
 El `401` es el más informativo: prueba que nginx llega hasta la API. Si no la alcanzara,
 verías `502`.
