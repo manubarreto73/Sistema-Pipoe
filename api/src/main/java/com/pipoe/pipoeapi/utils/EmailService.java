@@ -20,11 +20,11 @@ public class EmailService {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom(from);
         message.setTo(email);
-        message.setSubject("Tu acceso a Pipoe");
+        message.setSubject("Tu acceso al Modelo PipoE");
         message.setText("""
             Hola %s,
 
-            Se creó tu usuario en Pipoe. Estos son tus datos de acceso:
+            Se creó tu usuario en el Modelo PipoE. Estos son tus datos de acceso:
 
             Email: %s
             Contraseña: %s
@@ -49,7 +49,7 @@ public class EmailService {
         message.setText("""
             Hola %s,
 
-            Te agregaron como colaborador del proyecto "%s" en Pipoe.
+            Te agregaron como colaborador del proyecto "%s" en el Modelo PipoE.
             Estos son tus datos de acceso para el login de colaboradores:
 
             Código del proyecto: %s
