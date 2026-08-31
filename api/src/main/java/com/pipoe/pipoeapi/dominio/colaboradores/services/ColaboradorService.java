@@ -24,6 +24,7 @@ import com.pipoe.pipoeapi.dominio.proyectos.services.ProyectoService;
 import com.pipoe.pipoeapi.dominio.usuarios.entities.Usuario;
 import com.pipoe.pipoeapi.exceptions.exceptions.BusinessException;
 import com.pipoe.pipoeapi.exceptions.exceptions.ResourceNotFoundException;
+import com.pipoe.pipoeapi.utils.Emails;
 import com.pipoe.pipoeapi.parametros.service.ParametrosService;
 import com.pipoe.pipoeapi.utils.EmailService;
 import com.pipoe.pipoeapi.utils.PasswordGenerator;
@@ -58,7 +59,20 @@ public class ColaboradorService {
     public ColaboradorResponse create(Long proyectoId, RegisterColaboradorRequest request, Usuario solicitante) {
         Proyecto proyecto = proyectoService.findDelUsuario(proyectoId, solicitante);
 
-        Optional<Colaborador> existente = colaboradorRepository.findByProyectoAndEmail(proyecto, request.getEmail());
+        request.setEmail(Emails.normalizar(request.getEmail()));
+
+        // El dueño ya tiene edición en las cinco fases. Agregándose como colaborador se creaba
+        // una segunda identidad sobre el mismo proyecto, con otra contraseña y con permisos que
+        // podían ser menores que los suyos: dos sesiones distintas para la misma persona y un
+        // historial que la muestra como dos autores. Se compara contra el dueño del proyecto y
+        // no contra quien pide, para que siga valiendo si algún día alguien más puede invitar.
+        if (proyecto.getUsuario().getEmail().equalsIgnoreCase(request.getEmail()))
+            throw new BusinessException(
+                "No puedes agregarte como colaborador de tu propio proyecto: "
+                + "ya tienes permiso de edición en las cinco fases");
+
+        Optional<Colaborador> existente =
+            colaboradorRepository.findByProyectoAndEmail(proyecto, request.getEmail());
         if (existente.isPresent() && existente.get().isActivo())
             throw new BusinessException("Ese email ya es colaborador de este proyecto");
 
@@ -83,7 +97,8 @@ public class ColaboradorService {
 
         colaboradorRepository.save(colaborador);
         emailService.enviarAccesoColaborador(
-            colaborador.getEmail(), colaborador.getNombre(), proyecto.getNombre(), rawPassword
+            colaborador.getEmail(), colaborador.getNombre(),
+            proyecto.getNombre(), proyecto.getCodigo(), rawPassword
         );
 
         return ColaboradorResponse.from(colaborador);
@@ -147,15 +162,16 @@ public class ColaboradorService {
         return colaborador;
     }
 
-    public Colaborador login(String nombreProyecto, String email, String password) {
+    public Colaborador login(String codigoProyecto, String email, String password) {
         Proyecto proyecto;
         try {
-            proyecto = proyectoService.findByNombre(nombreProyecto);
+            proyecto = proyectoService.findByCodigo(codigoProyecto);
         } catch (ResourceNotFoundException e) {
             throw new BadCredentialsException("Credenciales inválidas");
         }
 
-        Colaborador colaborador = colaboradorRepository.findByProyectoAndEmail(proyecto, email)
+        Colaborador colaborador = colaboradorRepository
+            .findByProyectoAndEmail(proyecto, Emails.normalizar(email))
             .orElseThrow(() -> new BadCredentialsException("Credenciales inválidas"));
 
         // Dado de baja: mismo error que una clave equivocada, para no confirmar que el mail existe.

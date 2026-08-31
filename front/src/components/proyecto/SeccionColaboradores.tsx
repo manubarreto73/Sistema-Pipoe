@@ -17,6 +17,7 @@ import {
   useCrearColaborador,
   useEliminarColaborador,
 } from "@/features/proyectos/hooks";
+import { useAuthStore } from "@/stores/auth";
 import {
   nuevoColaboradorSchema,
   type NuevoColaboradorValues,
@@ -97,7 +98,7 @@ export function SeccionColaboradores({ proyectoId }: { proyectoId: number }) {
       {colaboradores.isSuccess &&
         (colaboradores.data.length === 0 ? (
           <p className="text-slate-600">
-            Este proyecto todavía no tiene colaboradores. Agregá el primero con el botón de
+            Este proyecto todavía no tiene colaboradores. Agrega el primero con el botón de
             arriba.
           </p>
         ) : (
@@ -271,7 +272,7 @@ function ColaboradorCard({
         description={
           <>
             Pierde el acceso al proyecto de inmediato, incluso si tiene la sesión abierta.
-            Podés volver a invitarlo más adelante, pero recibiría una contraseña nueva y sus
+            Puedes volver a invitarlo más adelante, pero recibiría una contraseña nueva y sus
             permisos arrancarían de cero.
           </>
         }
@@ -295,16 +296,35 @@ type InvitarModalProps = {
 function InvitarColaboradorModal({ open, proyectoId, onClose }: InvitarModalProps) {
   const crear = useCrearColaborador(proyectoId);
   const [confirmando, setConfirmando] = useState<NuevoColaboradorValues | null>(null);
+  // Sólo el dueño ve este formulario, así que la sesión es la suya.
+  const propioEmail = useAuthStore((state) => state.sesion?.email);
 
   const {
     register,
     handleSubmit,
     reset,
+    setError,
     formState: { errors },
   } = useForm<NuevoColaboradorValues>({
     resolver: zodResolver(nuevoColaboradorSchema),
     defaultValues: { nombre: "", email: "" },
   });
+
+  /**
+   * Invitarse a uno mismo crea una segunda identidad sobre el propio proyecto, con otra
+   * contraseña y posiblemente con menos permisos de los que ya se tienen. El backend lo
+   * rechaza igual; acá se corta antes para no pasar por la pantalla de confirmación.
+   */
+  const revisar = (values: NuevoColaboradorValues) => {
+    if (propioEmail && values.email.trim().toLowerCase() === propioEmail.toLowerCase()) {
+      setError("email", {
+        message: "Es tu propia dirección: ya tienes edición en las cinco fases",
+      });
+      return;
+    }
+
+    setConfirmando(values);
+  };
 
   const cerrar = () => {
     setConfirmando(null);
@@ -320,7 +340,7 @@ function InvitarColaboradorModal({ open, proyectoId, onClose }: InvitarModalProp
       description={
         confirmando
           ? undefined
-          : "Arranca con sólo lectura en las 5 fases. Después podés cambiarle los permisos."
+          : "Arranca con sólo lectura en las 5 fases. Después puedes cambiarle los permisos."
       }
       onClose={cerrar}
       dismissable={!crear.isPending}
@@ -357,7 +377,7 @@ function InvitarColaboradorModal({ open, proyectoId, onClose }: InvitarModalProp
       ) : (
         <form
           noValidate
-          onSubmit={handleSubmit((values) => setConfirmando(values))}
+          onSubmit={handleSubmit(revisar)}
           className="flex flex-col gap-4"
         >
           <Field label="Nombre" htmlFor="colaboradorNombre" error={errors.nombre?.message}>
