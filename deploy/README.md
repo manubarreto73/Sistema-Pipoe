@@ -148,16 +148,21 @@ curl -s -o /dev/null -w "443 -> %{http_code}\n" "https://$D/"
 echo | openssl s_client -connect $D:443 -servername $D 2>/dev/null | openssl x509 -noout -issuer -dates
 curl -s -o /dev/null -w "ruta del router -> %{http_code}\n" "https://$D/proyectos"
 curl -s -o /dev/null -w "api sin token   -> %{http_code}\n" "https://$D/api/proyectos"
+curl -s -o /dev/null -w "api token malo  -> %{http_code}\n" -H "Authorization: Bearer basura" "https://$D/api/proyectos"
 curl -s    -w "\nhealth -> %{http_code}\n" "https://$D/actuator/health"
 curl -s -o /dev/null -w "www    -> %{http_code} -> %{redirect_url}\n" "https://www.$D/"
 ```
 
 Esperado: `301` al HTTPS, `200`, certificado de Let's Encrypt, `200` en la ruta del router
-(el fallback del SPA), **`401`** en la API sin token, `200` con `"status":"UP"` en el health y
-`301` de `www` al dominio pelado.
+(el fallback del SPA), **`403`** en la API sin token, **`401`** con un token inválido, `200` con
+`"status":"UP"` en el health y `301` de `www` al dominio pelado.
 
-El `401` es el más informativo: prueba que nginx llega hasta la API. Si no la alcanzara,
-verías `502`.
+Los dos de la API son los más informativos, porque prueban que nginx llega hasta ella: si no la
+alcanzara, verías `502`. Y son códigos distintos a propósito. Sin cabecera de autorización no
+hay nada que evaluar y responde Spring Security con un `403` vacío; con una cabecera que no
+valida entra en juego el filtro del token, que devuelve `401` y el JSON
+`{"status":401,"message":"Token inválido"}` — el mismo que el frontend usa para decidir si
+renueva la sesión o la cierra.
 
 ### 6. Probar que el correo sale
 
