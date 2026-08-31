@@ -24,4 +24,20 @@ public interface DocumentoRepository extends JpaRepository<Documento, Long> {
         WHERE d.proyecto = :proyecto AND p.fase = :fase
         """)
     List<Documento> findDelProyectoYFase(@Param("proyecto") Proyecto proyecto, @Param("fase") Fase fase);
+
+    /**
+     * Lo completado en varios proyectos de una sola vez, como (proyectoId, fase, esProducto).
+     *
+     * Es para el listado de la administradora, que pinta el avance de las 5 fases de cada
+     * proyecto de la página. Preguntarlo proyecto por proyecto sería el N+1 de manual: con una
+     * página de 30, treinta viajes a la base para dibujar unos cuadraditos de color.
+     *
+     * Sólo trae lo completado, que es todo lo que el indicador necesita saber.
+     */
+    @Query("""
+        SELECT d.proyecto.id, p.fase, p.esProducto
+        FROM Documento d JOIN d.paso p
+        WHERE d.proyecto.id IN :proyectoIds AND d.completado = TRUE
+        """)
+    List<Object[]> completadosDe(@Param("proyectoIds") List<Long> proyectoIds);
 }

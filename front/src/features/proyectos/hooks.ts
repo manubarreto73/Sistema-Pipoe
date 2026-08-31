@@ -15,7 +15,12 @@ import type {
   NuevoColaboradorValues,
   NuevoProyectoValues,
 } from "@/features/proyectos/schemas";
+import {
+  getProyectosAdmin,
+  type FiltrosProyectos,
+} from "@/features/proyectos/adminApi";
 import type { Permiso } from "@/features/proyectos/types";
+import { useAuthStore } from "@/stores/auth";
 
 /** Claves de caché centralizadas para no desincronizar los invalidate. */
 export const proyectosKeys = {
@@ -23,6 +28,19 @@ export const proyectosKeys = {
   detalle: (id: number) => ["proyectos", id] as const,
   colaboradores: (id: number) => ["proyectos", id, "colaboradores"] as const,
 };
+
+/**
+ * Todos los proyectos del sistema, para la administradora. Aparte de useProyectos, que es "los
+ * míos": son dos preguntas distintas y dos endpoints distintos.
+ */
+export function useProyectosAdmin(filtros: FiltrosProyectos, page: number) {
+  return useQuery({
+    queryKey: [...proyectosKeys.todos, "admin", { ...filtros, page }] as const,
+    queryFn: () => getProyectosAdmin(filtros, page),
+    // Al cambiar de filtro o de página, sostiene lo anterior en pantalla en vez de parpadear.
+    placeholderData: (anterior) => anterior,
+  });
+}
 
 export function useProyectos() {
   return useQuery({
@@ -37,6 +55,22 @@ export function useProyecto(proyectoId: number) {
     queryFn: () => getProyecto(proyectoId),
     enabled: Number.isFinite(proyectoId),
   });
+}
+
+/**
+ * Si la sesión es la dueña de ESTE proyecto.
+ *
+ * No alcanza con `type === "USUARIO"`, que es como se resolvía antes: desde que la
+ * administradora entra a proyectos ajenos hay usuarios mirando algo que no es suyo, y
+ * ofrecerles acciones que la API les va a negar con un 403 es peor que no ofrecerlas.
+ *
+ * Se apoya en la misma query que ya cargó el marco del proyecto, así que no pide nada de más.
+ */
+export function useEsDuenio(proyectoId: number) {
+  const sesion = useAuthStore((state) => state.sesion);
+  const proyecto = useProyecto(proyectoId);
+
+  return sesion?.type === "USUARIO" && proyecto.data?.usuarioId === sesion.id;
 }
 
 export function useColaboradores(proyectoId: number, habilitado: boolean) {
