@@ -1,0 +1,12 @@
+-- Última vez que la cuenta inició sesión.
+--
+-- Es la columna que hace útil el panel de usuarios: sin ella, "quién sigue usando esto" no se
+-- puede responder, y desactivar cuentas se vuelve adivinanza.
+--
+-- Arranca en NULL y no en la fecha de la migración: una cuenta que nunca entró y una que entró
+-- justo antes de migrar son cosas distintas, y rellenarlas con el mismo valor borraría esa
+-- diferencia para siempre. En el panel se muestran como "nunca".
+--
+-- Se escribe en cada login, o sea una vez por sesión y no por request: no es un contador de
+-- actividad, es la última puerta de entrada.
+ALTER TABLE usuarios ADD COLUMN ultimo_acceso TIMESTAMP;

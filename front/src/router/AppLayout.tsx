@@ -20,7 +20,7 @@ export function AppLayout() {
         <nav className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
           <Link
             to={inicio}
-            className="rounded focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-600"
+            className="focus-visible:outline-brand-600 rounded focus-visible:outline-2 focus-visible:outline-offset-4"
           >
             <Marca />
           </Link>
@@ -28,8 +28,14 @@ export function AppLayout() {
           <div className="flex items-center gap-2">
             {sesion?.role === "ADMIN" && (
               <>
+                <Link to="/admin/proyectos">
+                  <Button variant="ghost">Proyectos</Button>
+                </Link>
                 <Link to="/admin/solicitudes">
                   <Button variant="ghost">Solicitudes</Button>
+                </Link>
+                <Link to="/admin/usuarios">
+                  <Button variant="ghost">Usuarios</Button>
                 </Link>
                 <Link to="/admin/catalogo">
                   <Button variant="ghost">Catálogo</Button>
@@ -54,7 +60,7 @@ export function AppLayout() {
             <Link
               to="/perfil"
               title="Mi perfil"
-              className="flex items-center gap-2 rounded-lg py-1.5 pr-3 pl-1.5 transition-colors hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
+              className="focus-visible:outline-brand-600 flex items-center gap-2 rounded-lg py-1.5 pr-3 pl-1.5 transition-colors hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2"
             >
               <IconoPerfil />
 
@@ -63,9 +69,7 @@ export function AppLayout() {
                   {sesion?.nombreCompleto}
                 </span>
                 {sesion?.type === "COLABORADOR" && sesion.proyectoNombre && (
-                  <span className="block text-xs text-slate-500">
-                    {sesion.proyectoNombre}
-                  </span>
+                  <span className="block text-xs text-slate-500">{sesion.proyectoNombre}</span>
                 )}
               </span>
             </Link>
@@ -106,7 +110,7 @@ function IconoPerfil() {
   return (
     <span
       aria-hidden
-      className="flex size-8 shrink-0 items-center justify-center rounded-full bg-brand-100 text-brand-700"
+      className="bg-brand-100 text-brand-700 flex size-8 shrink-0 items-center justify-center rounded-full"
     >
       <svg
         viewBox="0 0 24 24"

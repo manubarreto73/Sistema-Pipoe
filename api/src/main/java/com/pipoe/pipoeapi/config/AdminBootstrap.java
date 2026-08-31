@@ -61,7 +61,7 @@ public class AdminBootstrap implements ApplicationRunner {
             log.warn("""
                 No hay ningún usuario ADMIN en la base y no se configuró el administrador inicial.
                 Nadie puede entrar al sistema. Definí ADMIN_INICIAL_EMAIL y ADMIN_INICIAL_PASSWORD \
-                y reiniciá la aplicación.""");
+                y reinicia la aplicación.""");
             return;
         }
 
@@ -84,7 +84,7 @@ public class AdminBootstrap implements ApplicationRunner {
         usuarioRepository.save(admin);
 
         // No se manda por mail: el que arrancó el servidor ya conoce la contraseña, la puso él.
-        log.info("SEGURIDAD admin_inicial_creado cuenta={} — cambiá la contraseña en el primer "
-            + "login y borrá la variable del entorno", admin.getEmail());
+        log.info("SEGURIDAD admin_inicial_creado cuenta={} — cambia la contraseña en el primer "
+            + "login y borra la variable del entorno", admin.getEmail());
     }
 }

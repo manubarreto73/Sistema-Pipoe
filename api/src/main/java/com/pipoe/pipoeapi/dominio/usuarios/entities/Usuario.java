@@ -35,8 +35,17 @@ public class Usuario implements UserDetails {
     @Column(nullable = false)
     private Role role;
 
+    /**
+     * Baja lógica. Una cuenta deshabilitada no entra —findByEmailAndEnabledTrue la deja
+     * afuera— pero conserva sus proyectos, sus documentos y sus comentarios: lo que hizo sigue
+     * siendo parte del registro del sistema.
+     */
     @Column(nullable = false)
     private boolean enabled;
+
+    /** Último inicio de sesión. Null si la cuenta nunca entró. */
+    @Column(name = "ultimo_acceso")
+    private java.time.LocalDateTime ultimoAcceso;
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
