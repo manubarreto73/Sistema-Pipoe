@@ -21,7 +21,11 @@ public class PasswordGenerator {
     private static final String SIMBOLOS = "!@#$%";
     private static final String TODOS = MAYUSCULAS + MINUSCULAS + NUMEROS + SIMBOLOS;
 
-    private static final int LENGTH = 12;
+    /**
+     * Mismo largo que el minimo que se le exige a una clave elegida a mano
+     * (Constantes.PASSWORD_REGEX): un solo numero en todo el sistema.
+     */
+    private static final int LENGTH = 8;
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private PasswordGenerator() {}

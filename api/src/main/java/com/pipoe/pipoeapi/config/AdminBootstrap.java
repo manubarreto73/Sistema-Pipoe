@@ -33,8 +33,12 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class AdminBootstrap implements ApplicationRunner {
 
-    /** Por debajo de esto no vale la pena crear la cuenta: es la puerta de entrada al sistema. */
-    private static final int LARGO_MINIMO = 12;
+    /**
+     * El mismo minimo que rige en todo el sistema (Constantes.PASSWORD_REGEX). Tenerlo distinto
+     * acá ya costó una vez: generar-env.sh aceptaba una clave que este arranque después
+     * rechazaba, y la cuenta no se creaba sin que nada lo dijera en la pantalla de login.
+     */
+    private static final int LARGO_MINIMO = 8;
 
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;

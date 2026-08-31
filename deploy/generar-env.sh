@@ -60,20 +60,17 @@ fijar CORS_ALLOWED_ORIGINS "https://${DOM}"
 echo
 echo "--- Primer administrador (se crea solo si la base no tiene ninguno) ---"
 read -rp  "Email del administrador: " EMAIL_ADMIN
-read -rsp "Contrasena, minimo 12 caracteres (no se muestra): " PASS_ADMIN; echo
+read -rsp "Contrasena, minimo 8 caracteres (no se muestra): " PASS_ADMIN; echo
 read -rsp "Repetir contrasena: " PASS_REPE; echo
 
 if [ "${PASS_ADMIN}" != "${PASS_REPE}" ]; then
     rm -f .env; echo "Las contrasenas no coinciden. No se creo el .env."; exit 1
 fi
-# 12 y no 8: AdminBootstrap exige 12 para el administrador inicial, y si no llega registra un
-# error y NO crea la cuenta. El sistema arranca sano, el login dice "credenciales invalidas" y
-# no hay ninguna pista de por que, salvo una linea perdida en el log del arranque.
-# Los 8 son la politica de las claves que elige cada persona desde adentro; esta es otra cosa:
-# es la credencial con mas permisos del sistema y viaja en texto plano hasta el .env.
-if [ ${#PASS_ADMIN} -lt 12 ]; then
-    rm -f .env; echo "La contrasena del administrador tiene que tener al menos 12 caracteres."
-    exit 1
+# El mismo minimo que exige AdminBootstrap y que rige en toda la aplicacion. Si alguno de los
+# dos cambia, tienen que cambiar los dos: cuando no coincidieron, este script acepto una clave
+# que el arranque despues rechazo, y la cuenta no se creo sin que nada lo dijera.
+if [ ${#PASS_ADMIN} -lt 8 ]; then
+    rm -f .env; echo "La contrasena tiene que tener al menos 8 caracteres."; exit 1
 fi
 
 fijar ADMIN_INICIAL_EMAIL    "${EMAIL_ADMIN}"
