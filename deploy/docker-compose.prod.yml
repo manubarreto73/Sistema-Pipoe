@@ -136,6 +136,12 @@ services:
       exec nginx -g 'daemon off;'"
     depends_on:
       - api
+    # `edge` es la red compartida con los otros sistemas que viven en esta VPS (hoy, Prezo).
+    # Este nginx tiene el 80/443 y les hace de borde: termina su TLS y les pasa el tráfico
+    # por esa red. Ver nginx/templates/prezo.conf.template.
+    networks:
+      - default
+      - edge
     restart: unless-stopped
     logging: *logs
 
@@ -154,6 +160,11 @@ services:
       done"
     restart: unless-stopped
     logging: *logs
+
+networks:
+  # Se crea una sola vez, a mano:  docker network create edge
+  edge:
+    external: true
 
 volumes:
   pgdata:

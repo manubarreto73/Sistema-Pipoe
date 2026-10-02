@@ -1,0 +1,25 @@
+# Borde de Prezo (prezo.com.ar), que por ahora comparte esta VPS con pipoe.
+#
+# Este nginx tiene el 80/443, así que termina el TLS de Prezo y le pasa todo al nginx
+# interno de Prezo (`prezo-web`), que está en la red compartida `edge`. Prezo vive en su
+# propio compose (~/prezo/deploy): base, Redis y API propias, sin puertos publicados.
+#
+# El certificado lo emite y renueva el mismo certbot de pipoe (mismo volumen).
+# El día que Prezo se mude a su propio servidor, se borra este archivo y listo.
+#
+# Sin variables de envsubst: todo lo que empieza con $ acá es de nginx y queda intacto.
+
+server {
+    listen 80;
+    server_name prezo.com.ar www.prezo.com.ar;
+
+    server_tokens off;
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 301 https://prezo.com.ar$request_uri;
+    }
+}
