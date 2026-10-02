@@ -23,3 +23,63 @@ server {
         return 301 https://prezo.com.ar$request_uri;
     }
 }
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name www.prezo.com.ar;
+
+    server_tokens off;
+
+    ssl_certificate     /etc/letsencrypt/live/prezo.com.ar/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/prezo.com.ar/privkey.pem;
+
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+
+    return 301 https://prezo.com.ar$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name prezo.com.ar;
+
+    server_tokens off;
+
+    ssl_certificate     /etc/letsencrypt/live/prezo.com.ar/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/prezo.com.ar/privkey.pem;
+
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 1d;
+
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    client_max_body_size 16m;
+
+    proxy_connect_timeout 10s;
+    proxy_send_timeout    60s;
+    proxy_read_timeout    60s;
+
+    # Resolver dentro del server (y no a nivel http) para no duplicar el que declara
+    # default.conf. Con el destino en una variable, nginx vuelve a resolver `prezo-web`
+    # cuando Prezo se redespliega, en vez de quedarse con la IP vieja y devolver 502.
+    resolver 127.0.0.11 valid=10s ipv6=off;
+
+    location / {
+        set $prezo_destino http://prezo-web;
+        proxy_pass $prezo_destino$request_uri;
+        proxy_http_version 1.1;
+
+        proxy_set_header Host              $host;
+        # $remote_addr y no $proxy_add_x_forwarded_for: se pisa con la IP real de la conexión,
+        # así nadie puede inventarse otra y evadir el bloqueo por intentos fallidos de Prezo.
+        proxy_set_header X-Forwarded-For   $remote_addr;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+}
