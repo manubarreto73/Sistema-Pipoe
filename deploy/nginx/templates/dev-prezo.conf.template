@@ -21,3 +21,64 @@ server {
         return 301 https://dev.prezo.com.ar$request_uri;
     }
 }
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name dev.prezo.com.ar;
+
+    server_tokens off;
+
+    ssl_certificate     /etc/letsencrypt/live/dev.prezo.com.ar/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/dev.prezo.com.ar/privkey.pem;
+
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 1d;
+
+    # Que ningún buscador indexe el ambiente de pruebas.
+    add_header X-Robots-Tag "noindex, nofollow" always;
+    add_header X-Content-Type-Options "nosniff" always;
+
+    client_max_body_size 16m;
+
+    proxy_connect_timeout 10s;
+    proxy_send_timeout    60s;
+    proxy_read_timeout    60s;
+
+    resolver 127.0.0.11 valid=10s ipv6=off;
+
+    auth_basic           "Prezo dev";
+    auth_basic_user_file /etc/nginx/templates/dev-prezo.htpasswd;
+
+    location /api/ {
+        auth_basic off;
+        set $prezo_dev_destino http://prezo-dev-web;
+        proxy_pass $prezo_dev_destino$request_uri;
+        proxy_http_version 1.1;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Forwarded-For   $remote_addr;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+
+    # La bandeja de Mailpit: los correos que manda dev quedan acá en vez de salir.
+    location /mailpit/ {
+        set $mailpit_destino http://prezo-dev-mailpit:8025;
+        proxy_pass $mailpit_destino$request_uri;
+        proxy_http_version 1.1;
+        proxy_set_header Host       $host;
+        proxy_set_header Upgrade    $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_read_timeout 3600s;
+    }
+
+    location / {
+        set $prezo_dev_destino http://prezo-dev-web;
+        proxy_pass $prezo_dev_destino$request_uri;
+        proxy_http_version 1.1;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Forwarded-For   $remote_addr;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+}
