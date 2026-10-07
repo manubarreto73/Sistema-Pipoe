@@ -1,0 +1,23 @@
+# Borde del ambiente de desarrollo de Prezo (dev.prezo.com.ar): la rama desarrollo, con su
+# propio compose (~/prezo-dev) en esta misma VPS. Mismo esquema que prezo.conf.template.
+#
+# El sitio pide usuario y clave (dev-prezo.htpasswd, solo en el servidor, fuera de git).
+# /api/ queda afuera de esa clave: el front manda su JWT en el header Authorization, el
+# mismo que usa la autenticación básica, y no pueden convivir. La API se protege sola.
+#
+# Sin variables de envsubst: todo lo que empieza con $ acá es de nginx y queda intacto.
+
+server {
+    listen 80;
+    server_name dev.prezo.com.ar;
+
+    server_tokens off;
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 301 https://dev.prezo.com.ar$request_uri;
+    }
+}

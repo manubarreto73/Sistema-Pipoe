@@ -39,3 +39,6 @@ respaldos/
 # El .env de produccion se genera EN el servidor y nunca se versiona.
 deploy/.env
 deploy/.env.viejo
+
+# Usuario y clave del ambiente de desarrollo de Prezo: viven solo en el servidor.
+*.htpasswd
